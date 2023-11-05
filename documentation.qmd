@@ -1,0 +1,1183 @@
+---
+title: "Datathon Documentation of Code"
+author: "Ghana Statistical Service Data Science Tea,"
+code-copy: true
+code-overflow: wrap
+echo: true
+eval: false
+message: false
+warning: false
+format: html
+---
+
+# Introduction
+
+To fully understand what is happening in this notebook, it will be necessary to also view the final product, which can be found here:
+
+# Downloading and Preparing Non-traditional Data Sources
+
+## Packages
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(terra)
+library(arrow)
+library(slippymath)
+library(purrr)
+library(ggplot2)
+library(osmdata)
+library(osrm)
+library (haven)
+library(sjlabelled)
+
+
+```
+
+## Mlab
+
+We used M-labs to create a proxy for the quality of internet in a give area. To access the M-lab data we use Google Big Query and used this exact query.
+
+*M-Lab, or Measurement Lab, is a consortium formed by research, industry, and public-interest partners, aiming to foster an open, verifiable ecosystem for measuring global network performance. Operating as an open source project, it draws contributions from civil society organizations, educational institutions, and private sector companies. M-Lab hosts the largest collection of open Internet performance data globally, providing publicly available internet measurement services like measurement-lab.ndt.unified_downloads to help consumers, policymakers, and researchers develop an accurate understanding of their internet service quality. Among its offerings, it provides a variety of internet measurement services, including speed testing to numerous consumer platforms and services across the web.*
+
+```         
+SELECT
+  client.Geo.CountryName AS name,
+  client.Geo.Latitude as latitude,
+  client.Geo.Longitude as longitude,
+  EXTRACT(YEAR  FROM date) AS year,
+  COUNT(*) AS count,
+  AVG(a.MeanThroughputMbps) AS mean,
+  APPROX_QUANTILES(a.MeanThroughputMbps, 100)[OFFSET(90)]  AS percentile90,
+  APPROX_QUANTILES(a.MeanThroughputMbps, 100)[OFFSET(10)]  AS percentile10,
+  APPROX_QUANTILES(a.MeanThroughputMbps, 100)[OFFSET(95)]  AS percentile95,
+  APPROX_QUANTILES(a.MeanThroughputMbps, 100)[OFFSET(5)]   AS percentile05,
+  APPROX_QUANTILES(a.MeanThroughputMbps, 100)[OFFSET(50)]  AS median,
+  APPROX_QUANTILES(a.MeanThroughputMbps, 100)[OFFSET(100)]  AS max,
+  APPROX_QUANTILES(a.MeanThroughputMbps, 100)[OFFSET(1)]  AS min
+
+
+
+FROM
+  `measurement-lab.ndt.unified_downloads` as ndt
+
+WHERE
+  client.Geo.CountryName = "Ghana"
+  AND date BETWEEN '2018-01-01' AND '2022-12-31'
+  
+GROUP BY
+  name,latitude, longitude,  year
+
+ORDER BY
+  name, year, mean desc
+```
+
+To run this querry 3.23 TB of data is processed on Big Query (so it will take a while to run). The data was then saved as `data/bquxjob_6901820c_18b9489dd2e.csv`. now load the data into a geospatial data frame
+
+```{r}
+mlab_data <- read_csv("data/bquxjob_6901820c_18b9489dd2e.csv") %>% 
+  group_by(latitude, longitude   ) %>% 
+  summarise(across(c(count,mean,percentile90,percentile10,percentile95,percentile05), mean)) %>% 
+  ungroup()
+
+mlab_data_sf <- st_as_sf(mlab_data, coords = c("longitude", "latitude"), 
+                        crs= "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0") %>% 
+  filter(count > 10) %>%
+  st_transform(32630)
+```
+
+Filter out points that are outside of Ghana by using the Ghana Shapefile. These can be downloaded from the GSS StatsBank: https://statsbank.statsghana.gov.gh/. The m-lab observations are then aggregated to a voronoi (for easier comparion with the district boundaries) and clipped to only include Ghana for nicer looking plots. The results are saved as a geopackage.
+
+```{r}
+districts_ghana <- read_sf("Geo FIles/Districts_261/District_261.shp" ) %>%
+  st_transform(32630)
+
+internet_speed_districts <- mlab_data_sf %>%
+  st_join(districts_ghana) %>% 
+  filter(!is.na(count ))
+
+vor <- terra::voronoi(terra::vect(internet_speed_districts))
+
+vor_sf <- st_as_sf(vor) %>%
+  st_transform(32630)
+
+ghana_shape <- districts_ghana %>% 
+  st_union() %>% 
+  st_buffer(10)
+
+vor_sf_cut <- st_intersection(vor_sf, Ghana_shape) 
+
+vor_sf_cut %>% 
+  write_sf("output_files/internet_speed_voronoi_mlab.gpkg")
+```
+
+## Ookla data
+
+Another data source we used as a proxy for internet quality comes from Ookla. Ookla data is freely available via Ookla's Open Data Initiative. *Ookla Speed Test is a widely recognized web service that provides free analysis of internet access performance metrics such as connection data rate and latency. It is the flagship product of Ookl. The service is used by millions of individuals and organizations daily to measure the speed and performance of their internet connections across both fixed broadband and mobile network services. Ookla collects hundreds of millions of coverage scans daily from Android Speedtest users worldwide to determine an operator's geographic coverage using a sample of scans received from devices on that operator's network in each 100 m2 area.*
+
+The specicif data can be downloaded from: https://registry.opendata.aws/speedtest-global-performance/ (Global fixed broadband and mobile (cellular) network performance, allocated to zoom level 16 web mercator tiles (approximately 610.8 meters by 610.8 meters at the equator). Data is provided in both Shapefile format as well as Apache Parquet with geometries represented in Well Known Text (WKT) projected in EPSG:4326. Download speed, upload speed, and latency are collected via the Speedtest by Ookla applications for Android and iOS and averaged for each tile. Measurements are filtered to results containing GPS-quality location accuracy)
+
+An example download link to download the data might be: `https://ookla-open-data.s3.amazonaws.com/parquet/performance/type=mobile/year=2023/quarter=2/2023-04-01_performance_mobile_tiles.parquet`
+
+19 different parquet files were downloaded and combined:
+
+-   \[1 \]"2021-01-01_performance_fixed_tiles.parquet"
+-   \[2\] "2021-01-01_performance_mobile_tiles.parquet"
+-   \[3\] "2021-04-01_performance_fixed_tiles.parquet"
+-   \[4\] "2021-04-01_performance_mobile_tiles.parquet"
+-   \[5\] "2021-07-01_performance_fixed_tiles.parquet"
+-   \[6\] "2021-07-01_performance_mobile_tiles.parquet"
+-   \[7\] "2021-10-01_performance_fixed_tiles.parquet"
+-   \[8\] "2021-10-01_performance_mobile_tiles.parquet"
+-   \[9\] "2022-01-01_performance_fixed_tiles.parquet"
+-   \[10\] "2022-01-01_performance_mobile_tiles.parquet"
+-   \[11\] "2022-04-01_performance_fixed_tiles.parquet"
+-   \[12\] "2022-04-01_performance_mobile_tiles.parquet"
+-   \[13\] "2022-07-01_performance_fixed_tiles.parquet"
+-   \[14\] "2022-07-01_performance_mobile_tiles.parquet"
+-   \[15\] "2022-10-01_performance_fixed_tiles.parquet"
+-   \[16\] "2022-10-01_performance_mobile_tiles.parquet"
+-   \[17\] "2023-01-01_performance_fixed_tiles.parquet"
+-   \[18\] "2023-01-01_performance_mobile_tiles.parquet"
+-   \[19\] "2023-04-01_performance_mobile_tiles.parquet"
+
+These the files are not included in the Github, due to Github file size restrictions
+
+In total there are over 10,000 test locations within Ghana. Much of this code is borrow from: https://github.com/teamookla/ookla-open-data/blob/master/tutorials/filter_parquet_bounding_box.md
+
+```{r}
+all_files <- list.files(recursive = TRUE, pattern = ".parquet", full.names = TRUE)
+
+as_binary = function(x){
+  tmp = rev(as.integer(intToBits(x)))
+  id = seq_len(match(1, tmp, length(tmp)) - 1)
+  tmp[-id]
+}
+
+deg2num = function(lat_deg, lon_deg, zoom) {
+  lat_rad = lat_deg * pi /180
+  n = 2.0 ^ zoom
+  xtile = floor((lon_deg + 180.0) / 360.0 * n)
+  ytile = floor((1.0 - log(tan(lat_rad) + (1 / cos(lat_rad))) / pi) / 2.0 * n)
+  c(xtile, ytile)
+}
+
+# reference JavaScript implementations
+# https://developer.here.com/documentation/traffic/dev_guide/common/map_tile/topics/quadkeys.html
+
+tileXYToQuadKey = function(xTile, yTile, z) {
+  quadKey = ""
+  for (i in z:1) {
+    digit = 0
+    mask = bitwShiftL(1, i - 1)
+    xtest = as_binary(bitwAnd(xTile, mask))
+    if(any(xtest)) {
+      digit = digit + 1
+    }
+    
+    ytest = as_binary(bitwAnd(yTile, mask))
+    if(any(ytest)) {
+      digit = digit + 2
+    }
+    quadKey = paste0(quadKey, digit)
+  }
+  quadKey
+}
+
+get_perf_tiles <- function(bbox, tiles){
+  bbox <- st_bbox(
+    st_transform(
+      st_as_sfc(bbox),
+      4326
+    ))
+  tile_grid <- bbox_to_tile_grid(bbox, zoom = 16)
+  # zoom level 16 held constant, otherwise loop through the tile coordinates calculated above
+  quadkeys <- pmap(list(tile_grid$tiles$x, tile_grid$tiles$y, 16), tileXYToQuadKey)
+  perf_tiles <- tiles %>%
+    filter(quadkey %in% quadkeys)
+}
+
+
+ghana_shape_bbox <- st_bbox(ghana_shape)
+
+list_parquet_files <- list()
+
+for(i in 1:length(all_files)){
+  parquet_file <- read_parquet(all_files[i] )
+  
+  filtered_data <- get_perf_tiles(ghana_shape_bbox, parquet_file) %>%
+    st_as_sf(wkt = "tile", crs = 4269)
+  list_parquet_files[[i]] <- filtered_data
+  
+  print(paste(i, "/" , length(all_files)))
+}
+
+
+# sumamarise save only the  Ghana results
+results_per_key <- bind_rows(list_parquet_files) %>% 
+  select(quadkey, tile,avg_d_kbps, avg_u_kbps  ) %>% 
+  group_by(quadkey) %>% 
+  summarise(mean_d_kbps = mean(avg_d_kbps),
+            mean_u_kbps = mean(avg_u_kbps),
+            median_d_kbps= median(avg_d_kbps),
+            median_u_kbps= median(avg_u_kbps),
+            n = n())
+
+
+saveRDS(results_per_key, "output_files/results_per_key.rds")
+
+
+# for the storymap we also saved the voronoi version of the ookla data
+ookla_results <- readRDS( "output_files/results_per_key.rds")%>%
+  st_transform(32630) %>%
+  rename_with(.cols = -c(tile), function(x){paste0("ookla_", x)}) %>%
+  st_centroid()
+
+ookla_vor <- terra::voronoi(terra::vect(ookla_results))
+
+st_write(ookla_vor, "output_files/ookla_vor.gpkg")
+
+
+
+ookla_vor <- st_as_sf(ookla_vor) %>%
+  st_transform(32630)
+
+Ghana_shape <- ghana_shape %>%
+  st_transform(32630)
+
+ookla_vor <- st_intersection(ookla_vor, Ghana_shape) 
+
+population_polygon_sf_centroids <- population_polygon_sf_centroids %>%
+  st_join(ookla_vor)
+
+
+district_shapes <- district_shapes %>%
+  st_transform(32630)
+population_polygon_sf_centroids <- population_polygon_sf_centroids %>%
+  st_join(district_shapes) 
+```
+
+## Nightlight data
+
+one alternative data source we used was Nightlight satellite data from the Nasa Visible Infrared Imager-Radiometer Suite (VIIRS) satellite [^1]. The pre-processed data for all of Sub-Saharan Africa can be downloaded here: https://github.com/giacfalk/Electrification_SSA_data and here: https://data.mendeley.com/datasets/kn4636mtvg/6/.
+
+[^1]: Falchetta, G., Pachauri, S., Parkinson, S. et al. A high-resolution gridded dataset to assess electrification in sub-Saharan Africa. Sci Data 6, 110 (2019). https://doi.org/10.1038/s41597-019-0122-6
+
+These data will later be used to compute which percentage of the popopulation lives within an area that has access to electricity.
+
+```{r}
+access_levels <- terra::rast("data/tiersofaccess_SSA_2018.nc")
+
+
+ghana_shape <-ghana_shape %>%
+  st_transform(crs(access_levels))
+
+access_levels_crop <- terra::crop(access_levels, ghana_shape)
+access_levels_mask <- terra::mask(access_levels_crop,  vect(ghana_shape))
+access_levels_stack <- raster::stack(access_levels_mask)
+
+# view data
+#mapview::mapview(access_levels_stack$Tiers_of_access)
+
+
+access_levels_polygon <- as.polygons(access_levels_mask)
+access_levels_polygon_sf <- st_as_sf(access_levels_polygon)
+
+access_levels_polygon_sf %>% 
+  write_sf("output_files/access_levels_polygon_sf.gpkg")
+```
+
+## Access to School data.
+
+Although multiple sources access with the location of all school in Ghana (e.g. Project Connect: https://projectconnect.unicef.org/map/countries), most do not offer easy ways to download these data locally. So instead, we used OpenStreetMap[^2]. to download the location of all schools in Ghana (17,223 observations) and used the Open Source Routing Machine (OSRM)[^3] to create isodistance shapefiles (we ended up using 5km and 10km) around each school. Using OSRM has the advantage that it incorporates the road network. This way we can compute realistic travel-distances instead of just relying on straight-line distances (in cases were the roadnetwork was not sufficient we fell back on straight-line distances). To set up OSRM we first downloaded all all of the Ghana OSM data and set up a docker image running OSRM. To do this we create a new folder (to download all the files in) and ran these commands after navigating to this folder using:
+
+[^2]: https://www.openstreetmap.org/
+
+[^3]: https://project-osrm.org/
+
+```         
+docker pull osrm/osrm-backend
+wget http://download.geofabrik.de/africa/ghana-latest.osm.pbf
+
+docker run -t -v %cd%:/data osrm/osrm-backend osrm-extract -p /opt/foot.lua /data/ghana-latest.osm.pbf
+docker run -t -v %cd%:/data osrm/osrm-backend osrm-partition /data/ghana-latest.osrm
+docker run -t -v %cd%:/data osrm/osrm-backend osrm-customize /data/ghana-latest.osrm
+docker run -t -i -p 5000:5000 -v %cd%:/data osrm/osrm-backend osrm-routed --algorithm mld --max-table-size 10000  /data/ghana-latest.osrm
+```
+
+These commands download the OSRM docker image, download the latest Ghana OSM data, and start a OSRM routing server
+
+Then we downloaded all the schools locations, using the `osm` package.
+
+```{r}
+# Set the location to "Ghana"
+loc <- "Ghana"
+# Get the bounding box for Ghana
+bounding_box <- getbb(loc)
+
+# Get the boundaries for Ghana
+Ghana_boundries <-bounding_box %>%
+  opq() %>%
+  add_osm_feature(key = 'name', value= "Ghana") %>%
+  osmdata_sp()
+
+# Refine the boundaries to the first multipolygon
+Ghana_boundries <- Ghana_boundries$osm_multipolygons[1,]
+
+# Get amenities tagged as "school" within the bounding box of Ghana
+schools_ghana <- st_bbox(Ghana_boundries) %>%
+  opq() %>%
+  add_osm_feature(key = 'amenity', value = c("school")) %>%
+  osmdata_sp()
+
+# Extract location points of these schools
+schools_ghana_locations <- schools_ghana$osm_points %>%
+  as_tibble() %>%
+  select( osm_id, lon, lat )
+
+# Save the school locations to an RDS file
+saveRDS(schools_ghana_locations, "output_files/schools_ghana_locations.rds")
+
+# Define a Coordinate Reference System (CRS)
+projcrs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+
+# Transform schools_ghana_locations to a Simple Features (SF) object and re-project
+df <- schools_ghana_locations %>% 
+  st_as_sf( coords = c("lon", "lat"), crs = projcrs) %>% 
+  st_transform(32630)
+
+# Join the school data with some unspecified districts_ghana data on spatial location
+# ... and calculate longitude and latitude values for each school
+schools_in_Ghana <- df %>% 
+  st_join(districts_ghana) %>% 
+  filter(!is.na(District)) %>% 
+  st_transform(projcrs)  %>%
+  dplyr::mutate(lon = sf::st_coordinates(.)[,1],
+                lat = sf::st_coordinates(.)[,2]) %>% 
+  st_drop_geometry()
+
+# Set up an OpenStreetMap Routing Machine (OSRM) server and profile for walking distances
+options(osrm.server = "http://localhost:5000/", osrm.profile = "walk")
+
+# Create empty tibbles to store isodistance data
+results_500 <- tibble()
+results_2000 <- tibble()
+results_5000 <- tibble()
+results_10000 <- tibble()
+
+# Iterate through all schools, calculating isodistances and append the results
+# ... to the respective tibbles
+
+for(i in 1:nrow(schools_in_Ghana)){
+  tryCatch({ # include a tryCatch to continue if there is an error
+    current_data_point <- schools_in_Ghana %>%
+      slice(i) 
+    
+    location <-current_data_point %>% 
+      select(lon, lat) %>% 
+      as.data.frame() 
+    
+    res_500 <-  osrm::osrmIsodistance(location, breaks = c(500),
+                                       osrm.profile = "foot") %>% 
+      mutate(osm_id = current_data_point$osm_id)
+    
+    res_2000 <-  osrm::osrmIsodistance(location, breaks = c(2000),
+                                      osrm.profile = "foot") %>% 
+      mutate(osm_id = current_data_point$osm_id)
+    
+    res_5000 <-  osrm::osrmIsodistance(location, breaks = c(5000),
+                                       osrm.profile = "foot") %>% 
+      mutate(osm_id = current_data_point$osm_id)
+    res_10000 <-  osrm::osrmIsodistance(location, breaks = c(10000),
+                                       osrm.profile = "foot") %>% 
+      mutate(osm_id = current_data_point$osm_id)
+    
+    if(nrow(results_500) == 0){
+      results_500 <-   res_500
+      results_2000 <-   res_2000
+      results_5000 <-   res_5000
+      results_10000 <- res_10000
+    }else{
+      results_500 <- rbind(results_500,  res_500)
+      results_2000 <- rbind(results_2000,  res_2000)
+      results_5000 <- rbind(results_5000,  res_5000)
+      results_10000<- rbind(results_10000,  res_10000)
+      
+    }
+  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+
+# Identify schools outside the road network by performing a spatial anti-join
+# ... on the isodistance data, transform the CRS, and buffer the result
+
+schools_500m_outside_roadnetwork <- schools_in_Ghana %>%
+  select(osm_id, lon, lat) %>%
+  anti_join(results_500, by = join_by(osm_id)) %>%
+  st_as_sf( coords = c("lon", "lat"),
+          crs = projcrs)  %>% 
+  st_transform(32630) %>%
+  st_buffer(500)
+ 
+
+schools_2000m_outside_roadnetwork <- schools_in_Ghana %>%
+  select(osm_id, lon, lat) %>%
+  anti_join(results_2000, by = join_by(osm_id)) %>%
+  st_as_sf( coords = c("lon", "lat"),
+            crs = projcrs)  %>% 
+  st_transform(32630) %>%
+  st_buffer(2000)
+
+schools_5k_outside_roadnetwork <- schools_in_Ghana %>%
+  select(osm_id, lon, lat) %>%
+  anti_join(results_5000, by = join_by(osm_id)) %>%
+  st_as_sf( coords = c("lon", "lat"),
+            crs = projcrs)  %>% 
+  st_transform(32630) %>%
+  st_buffer(5000)
+
+schools_10k_outside_roadnetwork <- schools_in_Ghana %>%
+  select(osm_id, lon, lat) %>%
+  anti_join(results_10000, by = join_by(osm_id)) %>%
+  st_as_sf( coords = c("lon", "lat"),
+            crs = projcrs)  %>% 
+  st_transform(32630) %>%
+  st_buffer(10000)
+
+walk_500m <- results_500 %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  bind_rows(schools_500m_outside_roadnetwork) %>%
+  st_union()  %>%
+  st_buffer(200) %>%
+  st_transform(projcrs)
+
+filter_500 <- 
+  st_intersects(schools_in_Ghana_geo, walk_500m ) %>% 
+  as.numeric() %>% 
+  enframe() %>% 
+  mutate(value = ifelse(is.na(value), FALSE, TRUE))
+
+
+outside_polygons_500m <- schools_in_Ghana_geo[!filter_500$value, ] %>% 
+  st_transform(32630) %>%
+  st_buffer(500)
+
+# Create walkable area polygons by unioning the isodistance data with the buffered school data
+# ... outside the road network, transform CRS, buffer, and union again
+
+
+walk_500m_full <-results_500 %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  bind_rows(schools_500m_outside_roadnetwork)  %>% 
+  bind_rows(outside_polygons_500m) %>% 
+  st_make_valid() %>% 
+  st_union() %>% 
+  st_transform(32630) %>%
+  st_buffer(1) %>%
+  st_transform(projcrs)
+
+######
+
+
+walk_2k <- results_2000%>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  bind_rows(schools_2000m_outside_roadnetwork)  %>% 
+  st_make_valid() %>% 
+  st_union() %>% 
+  st_transform(32630) %>%
+  st_buffer(200) %>%
+  st_transform(projcrs)
+  
+
+
+filter_2k <- 
+  st_intersects(schools_in_Ghana_geo, walk_2k ) %>% 
+  as.numeric() %>% 
+  enframe() %>% 
+  mutate(value = ifelse(is.na(value), FALSE, TRUE))
+
+
+sum(!filter_2k$value)
+outside_polygons_2k <- schools_in_Ghana_geo[!filter_2k$value, ] %>% 
+  st_transform(32630) %>%
+  st_buffer(2000)
+
+walk_2k_full <-results_2000 %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  bind_rows(schools_2000m_outside_roadnetwork)  %>% 
+  bind_rows(outside_polygons_2k) %>% 
+  st_make_valid() %>% 
+  st_union() %>% 
+  st_transform(32630) %>%
+  st_buffer(1) %>%
+  st_transform(projcrs)
+
+
+#####
+
+walk_5k <- results_5000 %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  bind_rows(schools_5k_outside_roadnetwork) %>% 
+  st_make_valid() %>% 
+  st_union() %>% 
+  st_transform(32630) %>%
+  st_buffer(200) %>%
+  st_transform(projcrs)
+
+
+filter_5k <- 
+  st_intersects(schools_in_Ghana_geo, walk_5k ) %>% 
+  as.numeric() %>% 
+  enframe() %>% 
+  mutate(value = ifelse(is.na(value), FALSE, TRUE))
+
+sum(!filter_5k$value)
+outside_polygons_5k <- schools_in_Ghana_geo[!filter_5k$value, ] %>% 
+  st_transform(32630) %>%
+  st_buffer(5000)
+
+walk_5k_full <- results_5000 %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  bind_rows(schools_5k_outside_roadnetwork)  %>% 
+  bind_rows(outside_polygons_5k) %>% 
+  st_make_valid() %>% 
+  st_union() %>% 
+  st_transform(32630) %>%
+  st_buffer(1) %>%
+  st_transform(projcrs)
+
+######
+walk_10k <- results_10000 %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  bind_rows(schools_10k_outside_roadnetwork)  %>% 
+  st_make_valid() %>% 
+  st_union() %>% 
+  st_transform(32630) %>%
+  st_buffer(200) %>%
+  st_transform(projcrs)
+
+filter_10k <- 
+  st_intersects(schools_in_Ghana_geo, walk_10k ) %>% 
+  as.numeric() %>% 
+  enframe() %>% 
+  mutate(value = ifelse(is.na(value), FALSE, TRUE))
+
+
+outside_polygons_10k <- schools_in_Ghana_geo[!filter_10k$value, ] %>% 
+  st_transform(32630) %>%
+  st_buffer(10000)
+
+walk_10k_full <-results_10000 %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  bind_rows(schools_10k_outside_roadnetwork)  %>% 
+  bind_rows(outside_polygons_10k) %>% 
+  st_make_valid() %>% 
+  st_union() %>% 
+  st_transform(32630) %>%
+  st_buffer(1) %>%
+  st_transform(projcrs)
+
+
+
+schools_in_Ghana_geo_10k_buffer <- schools_in_Ghana_geo %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  st_buffer(10000)%>% 
+  st_transform(projcrs) 
+
+schools_in_Ghana_geo_5k_buffer <- schools_in_Ghana_geo %>% 
+  st_transform(32630) %>% 
+  st_make_valid() %>% 
+  st_buffer(5000)%>% 
+  st_transform(projcrs) 
+
+
+schools_in_Ghana_geo <- schools_in_Ghana %>% 
+  st_as_sf( coords = c("lon", "lat"),
+            crs = projcrs)
+# Write the various geospatial datasets to GeoPackage files
+
+write_sf(walk_500m_full, "output_files/walk_500m_updated.gpkg")
+write_sf(walk_2k_full, "output_files/walk_2km_updated.gpkg")
+write_sf(walk_5k_full, "output_files/walk_5km_updated.gpkg")
+write_sf(walk_10k_full, "output_files/walk_10km_updated.gpkg")
+write_sf(schools_in_Ghana_geo, "output_files/schools_in_Ghana_geo.gpkg")
+write_sf(schools_in_Ghana_geo_5k_buffer, "output_files/schools_in_Ghana_geo_5k_buffer.gpkg")
+write_sf(schools_in_Ghana_geo_10k_buffer, "output_files/schools_in_Ghana_geo_10k_buffer.gpkg")
+```
+
+# Data from Traditional data sources
+
+## Population data
+
+To get high-resolution population data (100m by 100m grid) we used WordPop's highresolution gridded population.[^4]. These data can be downloaded from: https://wopr.worldpop.org/?GHA/. We transform these data into centroids (assuming that within a 100m by 100m population is normally distributed) which are then used later to compute access to school, internet, and electricity. The file we create (`population_polygon_sf.rds`)  cannot be uploaded to GitHub, but the file can be created with the code below (we did uploaded a zipped version, so it is possible to unzip this version)
+
+[^4]: https://data.worldpop.org/repo/wopr/GHA/population/v2.0/GHA_population_v2_0_README.pdf
+
+```{r}
+population <- terra::rast("data/GHA_population_v2_0_gridded_population.tif")
+
+population_crop <- terra::crop(population, ghana_shape)
+population_mask <- terra::mask(population_crop,  vect(ghana_shape))
+
+
+# this takes a while as the data is big
+population_polygon <- as.polygons(population_mask, trunc = FALSE)
+population_polygon_sf <- st_as_sf(population_polygon)
+population_polygon_sf
+ 
+write_rds(population_polygon_sf, "output_files/population_polygon_sf.rds")
+
+population_polygon_sf_centroids <- population_polygon_sf %>%
+  st_centroid() %>%
+  st_transform(32630)
+```
+
+# Traditional data
+
+In addition to these non-traditional data sources, we also used GSS census data. These census data come from 2 sources.
+
+1)  the Ghana Statistical Service Statsbank (https://statsbank.statsghana.gov.gh/). Some tables were directly generated on the StatsBank and downloaded.
+2)  The 10% micro data from the StatsBank for data sources that need dissagregation that cannot be done on the Statsbank (https://microdata.statsghana.gov.gh/). This 10% is too big to be uploaded on Github, but can be downloaded on this microdata platform.
+    1)   Literacy_6years_Internet.csv: this files contains some computed indicators on literacy and internet use of the population 6 years and older.
+    2)
+
+```{r}
+# set path to data
+path_to_data <-  "data/defactopopn_10_2021.dta"
+
+
+popict <- sjlabelled::as_label(read_dta(file = path_to_data, 
+                                        col_select = c("a11d","p02", "region", "distcode", "distcode",
+                                                       "urbrur","restype","p11bn", "p19cz", "h08a", "weight", "p11ba", 
+                                                       "p11bb", "p11bc", "p11bd", "p11be", "p11bf", "p11bg",
+                                                       "p11bh", "p11bi", "p11bj", "p11bk", "p11bl", "p11bm", "p11bbo",
+                                                       "p11bp", "p11bq", "p11br", "p11bs", "p11bt", "p11bu", "p11bv", 
+                                                       "p11bw", "p11bx" )))
+get_label(popict)
+
+target <- c("Occupied housing unit" , "Homeless household" , "Basic Schools (KG, Primary, JHS)", 
+            "Senior High School (SHS, Secondary)",  "Colleges (Nursing, etc)",
+            "Service training institutions (Police trg.)", 
+            "University/Technical University/Polytechnic/University colleges/Colleges of educ" ,
+            "Seminary/Theologian school" ,  "Monastery/ Convent", "Hostel",
+            "Children home/ Orphanage", "Mining camp/ Road camp/ Farm camp", 
+            "Prison/ Borstal/Correctional homes", "Leper settlements (Leprosarium)")                                                                          
+
+
+pop <- popict %>%  
+  mutate(p02 = as.numeric(as.character(p02))) %>% 
+  filter(restype %in% target) %>%  
+  filter(p02>=18) 
+
+colnames(pop)
+
+#### Generating Literacy in Local Languages Variable
+pop <- pop %>% 
+  mutate(Literate_Local = case_when(
+    p11ba == "Yes" | p11bb == "Yes" | p11bc == "Yes" | p11bd == "Yes" | p11be == "Yes" |
+      p11bf == "Yes" | p11bg == "Yes" | p11bh == "Yes" | p11bi == "Yes" | p11bj == "Yes" |
+      p11bk == "Yes" | p11bl == "Yes" | p11bm == "Yes" | p11bbo == "Yes" | p11bp == "Yes" |
+      p11bq == "Yes" | p11br == "Yes" | p11bs == "Yes" | p11bt == "Yes" | p11bu == "Yes" | 
+      p11bv == "Yes" | p11bw == "Yes" | p11bx == "Yes"  ~ "Literate", p11ba == "No" & p11bb == "No" & 
+      p11bc == "No" & p11bd == "No" & p11be == "No" &
+      p11bf == "No" & p11bg == "No" & p11bh == "No" & p11bi == "No" & p11bj == "No" &
+      p11bk == "No" & p11bl == "No" & p11bm == "No" & p11bbo == "No" & p11bp == "No" &
+      p11bq == "No" & p11br == "No" & p11bs == "No" & p11bt == "No" & p11bu == "No" & 
+      p11bv == "No" & p11bw == "No" & p11bx == "No" ~ "Illiterate",
+    TRUE ~ NA_character_
+  ))
+
+
+##### Getting a cross tab of literacy in english and usage of internet####
+
+## Getting Data for population six years and older
+totpop <- table(pop$distcode)
+result_totpop <- as.data.frame(totpop)
+colnames(result_totpop) <- c("District", "Totpop")
+
+## Getting Data for population who cannot read and write in English
+toteng <- table(pop$distcode[pop$p11bn == "No"])
+result_eng <- as.data.frame(toteng)
+colnames(result_eng) <- c("District", "Illiterate")
+
+## Getting Data for population who did not use internet
+totint <- table(pop$distcode[pop$p19cz == "Yes"])
+result_ent <- as.data.frame(totint)
+colnames(result_ent) <- c("District", "Internet")
+
+### Getting data for Illiterate and Access to internet
+cross_tab <- table(pop$distcode[pop$p11bn == "No" & pop$p19cz == "No"])
+result_df <- as.data.frame(cross_tab)
+colnames(result_df) <- c("District", "Illit_Inte")
+
+### Getting data for Illiterate and No Access to internet
+cross_tab1 <- table(pop$distcode[pop$p11bn == "No" & pop$p19cz == "Yes"])
+result_ill_noint <- as.data.frame(cross_tab1)
+colnames(result_ill_noint) <- c("District", "Illit_noInte")
+
+### Getting data for literate and No Access to internet
+cross_tab2 <- table(pop$distcode[pop$p11bn == "Yes" & pop$p19cz == "Yes"])
+result_lit_noint <- as.data.frame(cross_tab2)
+colnames(result_lit_noint) <- c("District", "lit_noInte")
+
+cross_tab3 <- table(pop$distcode[pop$p11bn == "Yes" & pop$p19cz == "No"])
+result_lit_int <- as.data.frame(cross_tab3)
+colnames(result_lit_int) <- c("District", "lit_Inte")
+
+cross_tab4 <- table(pop$distcode[pop$p11bn == "No" & pop$Literate_Local == "Literate"])
+result_Illit_Eng_Literate_Local <- as.data.frame(cross_tab4)
+colnames(result_Illit_Eng_Literate_Local) <- c("District", "Illit_Eng_Literate_Local")
+
+cross_tab5 <- table(pop$distcode[pop$p19cz == "No" & pop$Literate_Local == "Literate"])
+result_Literate_Local_Use_Int <- as.data.frame(cross_tab5)
+colnames(result_Literate_Local_Use_Int) <- c("District", "Literate_Local_Used_Int")
+
+cross_tab6 <- table(pop$distcode[pop$p19cz == "Yes" & pop$Literate_Local == "Literate"])
+result_Literate_Local_Not_Int <- as.data.frame(cross_tab6)
+colnames(result_Literate_Local_Not_Int) <- c("District", "Literate_Local_Not_Used_Int")
+
+### Creating the data frame for all objects
+df <- data.frame(distcode = result_totpop$District, result_totpop$Totpop, result_eng$Illiterate, result_ent$Internet,
+                 result_df$Illit_Inte, result_ill_noint$Illit_noInte, result_lit_noint$lit_noInte, result_lit_int$lit_Inte,
+                 result_Illit_Eng_Literate_Local$Illit_Eng_Literate_Local, result_Literate_Local_Use_Int$Literate_Local_Used_Int,
+                 result_Literate_Local_Not_Int$Literate_Local_Not_Used_Int)
+
+colnames(New_final)
+
+Final <- df %>% 
+  janitor::clean_names() %>% 
+  mutate(prop_English_Illiterate=result_eng_illiterate/result_totpop_totpop,
+         prop_Did_Not_Used_Internet=result_ent_internet/result_totpop_totpop,
+         prop_Illiterate_Internet=result_df_illit_inte/result_totpop_totpop,
+         prop_Illiterate_NoInternet=result_ill_noint_illit_no_inte/result_totpop_totpop,
+         prop_Literate_Nointernet=result_lit_noint_lit_no_inte/result_totpop_totpop,
+         prop_Literate_Internet=result_lit_int_lit_inte/result_totpop_totpop,
+         prop_Illit_Eng_Literate_Local=result_illit_eng_literate_local_illit_eng_literate_local/result_totpop_totpop,
+         prop_lit_local_Usedict=result_literate_local_use_int_literate_local_used_int/result_totpop_totpop,
+         prop_lit_local_Not_Usedict=result_literate_local_not_int_literate_local_not_used_int/result_totpop_totpop,
+         
+  ) %>% 
+  write.csv("output_files/Literacy_6years_Internet.csv")
+```
+
+
+# compute final index
+
+```{r}
+# Load literacy data from a CSV file and clean column names using the janitor package.
+# Then, select the column 'district_name' and any columns containing the string "prop_"
+literacy_data <- vroom::vroom("output_files/Literacy_6years_Internet.csv") %>% 
+  janitor::clean_names() %>% 
+  select(district_name,contains("prop_"))
+
+# Load electricity data from the statsbank Select, rename, and mutate columns to prepare data for analysis.
+# Correct any misspelling in the Geographic_Area column
+electrcity_data <- readr::read_csv("https://statsbank.statsghana.gov.gh:443/sq/03fc2423-d895-4bc9-9696-eb5a71a3fc22") %>%
+  select(Geographic_Area, electric) %>%
+  rename(electric_census_use = electric)%>% 
+  mutate(Geographic_Area  = ifelse(Geographic_Area  =="Cape Cape Metropolitan Area (CCMA)", 
+                            "Cape Coast Metropolitan Area (CCMA)", 
+                            Geographic_Area ))
+
+# Load and process internet usage data
+internet_use = read.csv("data/ICT21_20231104-211447.csv") %>%
+  mutate(proportion_used_internet_census = No/Total) %>%
+  select(Geographic_Area    , proportion_used_internet_census )%>% 
+  mutate(Geographic_Area  = ifelse(Geographic_Area  =="Cape Cape Metropolitan Area (CCMA)", 
+                            "Cape Coast Metropolitan Area (CCMA)", 
+                            Geographic_Area ))
+
+# Load and process smartphone ownership data
+smartphone_ownership<- read.csv("data/ICT1_20231105-075121.csv") %>%
+  mutate(proportion_owns_smartphone = Yes/Total) %>%
+  select(Geographic_Area    , proportion_owns_smartphone )%>% 
+  mutate(Geographic_Area  = ifelse(Geographic_Area  =="Cape Cape Metropolitan Area (CCMA)", 
+                                   "Cape Coast Metropolitan Area (CCMA)", 
+                                   Geographic_Area ))
+
+# Load and process laptop ownership data
+laptop_ownership <- read.csv("data/ICT4_20231105-081915.csv") %>%
+  mutate(proportion_owns_laptop = Yes/Total) %>%
+  select(Geographic_Area    , proportion_owns_laptop )%>% 
+  mutate(Geographic_Area  = ifelse(Geographic_Area  =="Cape Cape Metropolitan Area (CCMA)", 
+                                   "Cape Coast Metropolitan Area (CCMA)", 
+                                   Geographic_Area ))
+
+# Load and process enrollment data
+enrollment_data <- readxl::read_excel("data/Enrollment_Datathon.xlsx") %>%
+  rename(percentage_3_14_years_currently_enrolled = Proportion) %>% 
+  mutate(District  = ifelse(District  =="Cape Cape Metropolitan Area (CCMA)", 
+                            "Cape Coast Metropolitan Area (CCMA)", 
+                            District ))
+
+
+# Load polygon data representing population distribution and calculate centroids of each polygon.
+population_polygon_sf<- readRDS( "output_files/population_polygon_sf.rds")
+population_polygon_sf_centroids <- population_polygon_sf %>%
+  st_centroid() %>%
+  st_transform(32630)
+
+# Load geographical data on school access within 10km and transform coordinates to a common CRS (Coordinate Reference System).
+School_10k_access <- read_sf("output_files/walk_10km_updated.gpkg") %>%
+  st_transform(32630) %>%
+  st_make_valid() 
+
+# Determine intersections between population centroids and 10km school access areas.
+population_within_10Kschool <- st_intersects(population_polygon_sf_centroids, School_10k_access)
+population_polygon_sf_centroids$within_school_10k = as.numeric(population_within_10Kschool)
+
+# Process the intersection data to fill missing values with zeros and ensure validity.
+population_polygon_sf_centroids<- population_polygon_sf_centroids %>%
+  mutate(within_school_10k = ifelse(is.na(within_school_10k ), 0, 1)) 
+
+
+School_5k_access <- read_sf("output_files/walk_5km_updated.gpkg") %>%
+  st_transform(32630) %>%
+  st_make_valid() 
+
+population_within_5Kschool <- st_intersects(population_polygon_sf_centroids, School_5k_access)
+
+population_polygon_sf_centroids$within_school_5k = as.numeric(population_within_5Kschool)
+
+population_polygon_sf_centroids<- population_polygon_sf_centroids %>%
+  mutate(within_school_5k= replace_na(within_school_5k, 0))  %>%
+  # just to be sure
+  mutate(within_school_10k  = ifelse(within_school_5k == 1, 1,  within_school_10k))
+
+
+
+
+elec_access_shape <- read_sf("output_files/access_levels_polygon_sf.gpkg") %>%
+  st_transform(32630) %>%
+  st_make_valid() %>%
+  filter(Tiers_of_access >0)
+
+population_with_elec <- st_intersects(population_polygon_sf_centroids, elec_access_shape)
+
+
+population_polygon_sf_centroids$elec_access = as.numeric(population_with_elec)
+
+population_polygon_sf_centroids<- population_polygon_sf_centroids %>%
+  mutate(elec_access= ifelse(is.na(elec_access), 0, 1))
+
+
+
+mlab_voronoi <- read_sf("output_files/internet_speed_voronoi_mlab.gpkg") %>%
+  select(-Label, -District, -Region) %>%
+  rename_with(.cols = -c(geom), function(x){paste0("mlab_", x)}) 
+  
+
+population_polygon_sf_centroids <-population_polygon_sf_centroids %>%
+  st_join(mlab_voronoi)
+
+
+ookla_results <- readRDS( "output_files/results_per_key.rds")%>%
+  st_transform(32630) %>%
+  rename_with(.cols = -c(tile), function(x){paste0("ookla_", x)}) %>%
+  st_centroid()
+
+ookla_vor <- terra::voronoi(terra::vect(ookla_results))
+ookla_vor <- st_as_sf(ookla_vor) %>%
+  st_transform(32630)
+ookla_vor <- st_intersection(ookla_vor,ghana_shape)
+
+population_polygon_sf_centroids <- population_polygon_sf_centroids %>%
+  st_join(ookla_vor)
+
+district_shapes <- districts_ghana %>%
+  st_transform(32630)
+population_polygon_sf_centroids <- population_polygon_sf_centroids %>%
+  st_join(district_shapes) 
+
+
+
+all_data_district_levels <- population_polygon_sf_centroids%>%
+  filter(!is.na(District)) %>%
+  group_by(District) %>%
+  summarise(within_school_10k_n = sum(within_school_10k  * GHA_population_v2_0_gridded_population, na.rm = TRUE ),
+            within_school_5k_n = sum(within_school_5k  * GHA_population_v2_0_gridded_population, na.rm = TRUE ),
+            total_pop =  sum(GHA_population_v2_0_gridded_population,  na.rm = TRUE),
+            with_elec_access = sum(elec_access   * GHA_population_v2_0_gridded_population,  na.rm = TRUE ),
+            mean_mlab_mean = mean(mlab_mean, na.rm = TRUE ),
+            weighted_mean_mlab_mean = weighted.mean(mlab_mean, GHA_population_v2_0_gridded_population,  na.rm = TRUE  ),
+            
+            mean_mlab_percentile90      = mean(mlab_percentile90, na.rm = TRUE ),
+            weighted_mlab_percentile90  = weighted.mean(mlab_percentile90, GHA_population_v2_0_gridded_population,  na.rm = TRUE  ),
+            
+            mean_mlab_mlab_percentile10 = mean(mlab_percentile10,  na.rm = TRUE ),
+            weighted_mlab_percentile10  = weighted.mean(mlab_percentile10, GHA_population_v2_0_gridded_population,  na.rm = TRUE  ),
+            
+            mean_ookla_median_d_kbps = mean(ookla_median_d_kbps,  na.rm = TRUE ),
+            weighted_ookla_median_d_kbps  = weighted.mean(ookla_median_d_kbps, GHA_population_v2_0_gridded_population,  na.rm = TRUE  ),
+            
+            mean_ookla_mean_d_kbps= mean(ookla_mean_d_kbps,  na.rm = TRUE ),
+            weighted_ookla_mean_d_kbps  = weighted.mean(ookla_mean_d_kbps, GHA_population_v2_0_gridded_population,  na.rm = TRUE  ),
+            
+            mean_ookla_median_u_kbpss= mean(ookla_median_u_kbps,  na.rm = TRUE ),
+            weighted_ookla_median_u_kbps = weighted.mean(ookla_median_u_kbps, GHA_population_v2_0_gridded_population,  na.rm = TRUE  ),
+            
+            mean_ookla_mean_u_kbps= mean(ookla_mean_u_kbps,  na.rm = TRUE ),
+            weighted_ookla_mean_u_kbps  = weighted.mean(ookla_mean_u_kbps, GHA_population_v2_0_gridded_population,  na.rm = TRUE  )
+            ) %>%
+  mutate(proportion_within_school_10k_n = within_school_10k_n/total_pop )%>%
+  mutate(proportion_within_school_5k_n = within_school_5k_n/total_pop )%>%
+  mutate(proportion_with_elec_access  = with_elec_access/total_pop ) %>%
+  left_join(literacy_data, by = c("District" = "district_name")) %>%
+  left_join(internet_use, by = c("District" = "Geographic_Area")) %>%
+  left_join(enrollment_data, by = c("District" = "District")) %>% 
+  left_join(electrcity_data, by = c("District" = "Geographic_Area")) %>%
+  left_join(laptop_ownership, by = c("District" = "Geographic_Area")) %>%
+  left_join(smartphone_ownership, by = c("District" = "Geographic_Area")) %>%
+  st_drop_geometry()
+
+all_data_district_levels_sf <- district_shapes %>%
+  left_join(all_data_district_levels)
+
+st_write(all_data_district_levels_sf, "output_files/all_data_district_levels.gpkg")
+
+all_data_district_levels_df <-all_data_district_levels %>%
+  st_drop_geometry()
+
+readr::write_csv(all_data_district_levels_df, "output_files/all_data_district_levels_df.csv")
+
+```
+
+
+## creating the ranks
+
+after preparing all the code we can rank them by our define code (other people might have different ideas)
+
+
+```{r}
+
+score_within_10 = 50
+score_within_5 = 50
+score_enrollment = 50
+score_electricity_nightlight = 50
+score_electricty_census = 50
+rank_multiplier_ookla = 100/261/5
+rank_multiplier_mlab= 100/261/5
+score_used_internet = 50
+score_own_laptop = 20
+score_own_smartphone = 20
+
+ranks <- all_data_district_levels_df %>%
+  mutate(ookla_rank = rank(weighted_ookla_median_d_kbps),
+         mlab_rank = rank(weighted_mean_mlab_mean)) %>%
+  mutate(score_education = proportion_within_school_10k_n * score_within_10 + 
+                           proportion_within_school_5k_n * score_within_5 +
+                            (percentage_3_14_years_currently_enrolled/100) * score_enrollment,
+         score_electricity = proportion_with_elec_access * score_electricity_nightlight + 
+                            (electric_census_use/100) * score_electricty_census,
+         score_internet = ookla_rank * rank_multiplier_ookla +
+                          mlab_rank * rank_multiplier_mlab +
+           proportion_owns_laptop *  score_own_laptop +
+           proportion_owns_smartphone * score_own_smartphone + 
+                          (proportion_used_internet_census) * score_used_internet
+         
+           ) %>%
+  mutate(score_final = (score_education + score_electricity + score_internet)) %>%
+  mutate(score_final_deflated = score_final* (1-prop_illit_eng_literate_local)) %>%
+  select(District, score_education, score_electricity, score_internet, score_final, score_final_deflated, prop_illit_eng_literate_local) %>%
+  mutate(rank_score = rank(score_final_deflated)) %>%
+  arrange(desc(rank_score))
+
+
+
+readr::write_csv(ranks, "output_files/ranks.csv")
+
+```
+
+
+
+# Shiny App  for AAI
+
+This was used to create data needed for the R shiny app with the AII. The code for the app itself sits in the folder Shiny_AII_app. we also created a simplified version of the district shapefiles on mapshaper.org
+
+
+```{r}
+data_for_app <- all_data_district_levels_df %>%
+  mutate(ookla_rank = rank(weighted_ookla_median_d_kbps),
+         mlab_rank = rank(weighted_mean_mlab_mean))
+
+saveRDS(data_for_app, "Shiny_AII_app/data_for_app.rds")
+```
+
+
+## Computing SDG indicators from Census Data.
+
+
+This is the R code for the computation of SDG indicators at the District levels using the census data (both from the StatBank and the 10% sample data). The merging of these files was done in Excel, and the final output file is called `SDG indicator tracker new - 05-11-2023 updated.csv`.
+
+
+```{r}
+# this file (10% sample) you will have to download from the micro data platform
+df <- sjlabelled::as_label(read_dta("data/defactopopn_10%_2021.dta"))
+
+target1 <- c("Occupied housing unit" , "Homeless household" , "Basic Schools (KG, Primary, JHS)",
+            "Senior High School (SHS, Secondary)",  "Colleges (Nursing, etc)",
+            "Service training institutions (Police trg.)",
+            "University/Technical University/Polytechnic/University colleges/Colleges of educ" ,
+            "Seminary/Theologian school" ,  "Monastery/ Convent", "Hostel",
+            "Children home/ Orphanage", "Mining camp/ Road camp/ Farm camp",
+            "Prison/ Borstal/Correctional homes", "Leper settlements (Leprosarium)")
+
+
+# Indicator 3.7.2:  Adolescent birth rate (aged 12–14 years) per 1,000 women in that age group  
+adolescent_birth_rate_12_14 <- df %>% 
+  # Filtering the data to contain only females aged 12 to 14 and lives 
+  # in households and residential structures
+  filter(a11d == "Female" & between(as.numeric(as.character(p02)), 12, 14) &
+           restype %in% target1) %>% 
+  mutate(
+    # Giving the value one to persons who has ever born at least one child
+    num1 = ifelse(p20t > 0, 1, 0),
+    # Giving the value one all persons who has ever born at least one child
+    den1 = 1,
+    # Weighting the `num1` and `den1` variables
+    num = round(weight * num1, 0),
+    den = round(weight * den1, 0)
+    ) %>% 
+  group_by(distcode) %>% 
+  summarise(
+    # Computing the total number of females who have ever born at least one child per district
+    numerator = sum(num, na.rm = TRUE), 
+    # Computing the total number of females per district
+    denominator = sum(den, na.rm = TRUE),
+    # Computing the proportion of females who have ever born per district
+    adolescent_birth_rate_12_14 = 1000 * numerator / denominator
+  ) %>% 
+  select(distcode, adolescent_birth_rate_12_14)
+
+write.csv(adolescent_birth_rate_12_14, "output_files/adol birth rate (12-14).csv")
+
+# Indicator 3.7.2: Adolescent birth rate (aged 15-19 years) per 1,000 women in that age group  
+adolescent_birth_rate_15_19 <- df %>% 
+  # Filtering the data to contain females aged 15 to 19 and lives 
+  # in households and residential structures
+  filter(a11d == "Female" & between(as.numeric(as.character(p02)), 15, 19) &
+           restype %in% target1) %>% 
+  mutate(
+    # Giving the value one to persons who has ever born at least one child
+    num1 = ifelse(p20t > 0, 1, 0),
+    # Giving the value one all persons who has ever born at least one child
+    den1 = 1,
+    # Weighting the `num1` and `den1` variables
+    num = round(weight * num1, 0),
+    den = round(weight * den1, 0)
+  ) %>% 
+  group_by(distcode) %>% 
+  summarise(
+    # Computing the total number of females who have ever born at least one child per district
+    numerator = sum(num, na.rm = TRUE), 
+    # Computing the total number of females per district
+    denominator = sum(den, na.rm = TRUE),
+    # Computing the proportion of females who have ever born per district
+    adolescent_birth_rate_15_19 = 1000 * numerator / denominator
+  ) %>% 
+  select(distcode, adolescent_birth_rate_15_19)
+
+write.csv(adolescent_birth_rate_15_19, "output_files/adol birth rate (15-19).csv")
+
+# Indicator 8.5.2: Unemployment rate, by sex, age and persons with disabilities (15years and older)
+unemployment_rate_disable <- df %>% 
+  # Filtering the data to contain only persons with difficulty in performing activity
+  filter(as.numeric(as.character(p02))>=15 & (p18a %in% c("Yes, some difficulty", "Yes, a lot of difficulty", "Cannot see at all") |
+            p18b %in% c("Yes, some difficulty", "Yes, a lot of difficulty", "Cannot see at all") |
+            p18c %in% c("Yes, some difficulty", "Yes, a lot of difficulty", "Cannot see at all") |
+            p18d %in% c("Yes, some difficulty", "Yes, a lot of difficulty", "Cannot see at all") |
+            p18e %in% c("Yes, some difficulty", "Yes, a lot of difficulty", "Cannot see at all") |
+            p18f %in% c("Yes, some difficulty", "Yes, a lot of difficulty", "Cannot see at all")) &
+           restype %in% target1) %>% 
+  mutate(
+    # Giving the value one to persons who are unemployed
+    num1 = ifelse(econact == "Unemployed", 1, 0),
+    # Giving the value one to each person
+    den1 = 1,
+    # Weighting the `num1` and `den1` variables
+    num = round(weight * num1, 0),
+    den = round(weight * den1, 0)
+  ) %>% 
+  group_by(distcode) %>% 
+  summarise(
+    # Computing the total number of persons with disability who are unemployed per district
+    numerator = sum(num, na.rm = TRUE), 
+    # Computing the total number  persons with disability per district
+    denominator = sum(den, na.rm = TRUE),
+    # Computing the proportion of persons with disability who are unemployed
+    unemployed_disabled = 100 * numerator / denominator
+  ) %>% 
+  select(distcode, unemployed_disabled)
+
+write.csv(unemployment_rate_disable, "output_files/unemployment_rate_disable.csv")
+
+# Indicator 6.2.1 Proportion of population using (a) safely managed sanitation services
+safely_managed_sanitation <- df %>% 
+  # Filtering the data to contain only occupied housing units
+  filter(restype == "Occupied housing unit") %>% 
+  mutate(
+    # Giving the value one to persons who lives households with safely managed sanitation services
+    num1 = ifelse(s03 %in% c("Septic tank (manhole)", "KVIP/VIP", "Pit latrine",
+                             "Enviro Loo", "Bio-digester (e.g. bio fill)", 
+                             "Bio gas", "Portable toilet (e.g. Water potti)",
+                             "Sewer") & 
+                    s04 %in% c("WC seat", "Flush squat bowl", "Pour flush bowl",
+                               "Urine-diverting dry toilet (UDDT)", 
+                               "Concrete pedestal/slab", "Wooden pedestal/slab",
+                               " Satopan/Micro flush"), 1, 0),
+    # Giving the value one all persons who lives in households
+    den1 = 1,
+    # Weighting the `num1` and `den1` variables
+    num = round(weight * num1, 0),
+    den = round(weight * den1, 0)
+  ) %>% 
+  group_by(distcode) %>% 
+  summarise(
+    # Computing the total number of persons who live in households with safely managed sanitation services
+    numerator = sum(num, na.rm = TRUE), 
+    # Computing the total number of females per district
+    denominator = sum(den, na.rm = TRUE),
+    # Computing the proportion of females who have ever born per district
+    unemployed_disabled = 100 * numerator / denominator
+  ) %>% 
+  select(distcode, unemployed_disabled)
+
+write.csv(safely_managed_sanitation, "output_files/safely_managed_sanitation.csv")
+
+```
+
+```{r}
+
+census_SDG_indicators <- read_csv("output_files/SDG indicator tracker new - 05-11-2023 updated.csv")
+
+district_shapes_with_SDG_indicators <- district_shapes %>% 
+  left_join(census_SDG_indicators, join_by(District))
+
+write_sf(district_shapes_with_SDG_indicators, "output_files/district_shapes_with_SDG_indicators.gpkg" ) 
+
+```
+
+
+## Tools
+
+-   R
+-   shiny
+-   Midjourney v5: used to make some of the visuals for the storymap
+-   Google Big Query
+-   Excel: some on the fly
+-   ArcGIS: used for mapping and StoryBoard
+-   AWS: for hosting of shiny app and running of heavy analyses
+
+
+

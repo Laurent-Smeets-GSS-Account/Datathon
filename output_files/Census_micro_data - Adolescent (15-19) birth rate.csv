@@ -1,0 +1,262 @@
+"","distcode","adolescent_birth_rate_15_19"
+"1","Jomoro Municipal",84.070796460177
+"2","Ellembelle",98.3606557377049
+"3","Nzema East Municipal",98.8074957410562
+"4","Ahanta West Municipal",92.2077922077922
+"5","Effia Kwesimintsim Municipal",31.1377245508982
+"6","Sekondi Takoradi Metropolitan Area (STMA)",23.5882773409578
+"7","Shama",69.3548387096774
+"8","Wassa East",168.949771689498
+"9","Mpohor",95.0570342205323
+"10","Tarkwa-Nsuaem Municipal",56
+"11","Prestea/Huni Valley Municipal",62.2222222222222
+"12","Wassa Amenfi East Municipal",77.2833723653396
+"13","Wassa Amenfi Central",143.137254901961
+"14","Wassa Amenfi West Municipal",105.902777777778
+"15","Komenda Edina Eguafo Abirem Municipal",62.6185958254269
+"16","Cape Coast Metropolitan Area (CCMA)",27.190332326284
+"17","Abura Asebu Kwamankese",79.0229885057471
+"18","Mfantsiman Municipal",44.9526813880126
+"19","Ekumfi",44.3864229765013
+"20","Gomoa West",83.75
+"21","Effutu Municipal",50
+"22","Gomoa Central",87.8378378378378
+"23","Gomoa East",40.2955003357958
+"24","Awutu Senya East Municipal",24.3084660519698
+"25","Awutu Senya",69.7940503432494
+"26","Agona East",64.8854961832061
+"27","Agona West Municipal",47.8654592496766
+"28","Asikuma Odoben Brakwa",88.2352941176471
+"29","Ajumako Enyan Essiam",98.0966325036603
+"30","Assin South",94.0665701881331
+"31","Twifo Heman Lower Denkyira",75.187969924812
+"32","Twifo Ati Morkwa",76.7790262172285
+"33","Assin Fosu Municipal",68.1818181818182
+"34","Assin North",95.2380952380952
+"35","Upper Denkyira East Municipal",81.5972222222222
+"36","Upper Denkyira West",150.121065375303
+"37","Ga South Municipal",43.161094224924
+"38","Weija Gbawe Municipal",35.7568533969011
+"39","Ga Central Municipal",17.1350239890336
+"40","Ablekuma North Municipal",19.0995907230559
+"41","Ablekuma West Municipal",31.437125748503
+"42","Ablekuma Central Municipal",16.2381596752368
+"43","Accra Metropolitan Area (AMA)",36.480686695279
+"44","Korle Klottey Municipal",33.2225913621262
+"45","Ayawaso Central Municipal",26.7857142857143
+"46","Ayawaso East Municipal",11.71875
+"47","Ayawaso North Municipal",5.40540540540541
+"48","La Dade-Kotopon Municipal",16.973125884017
+"49","Ledzokuku Municipal",27.7207392197125
+"50","Krowor Municipal",13.6518771331058
+"51","Adentan Municipal",22.6201696512724
+"52","Ayawaso West Municipal",11.037527593819
+"53","Okaikoi North Municipal",15.0478796169631
+"54","Ga North Municipal",15.3015301530153
+"55","Ga West Municipal",30.8555399719495
+"56","Ga East Municipal",20.6008583690987
+"57","La Nkwantanang Madina Municipal",26.5848670756646
+"58","Kpone Katamanso Municipal",36.7298578199052
+"59","Ashaiman Municipal",28.0777537796976
+"60","Tema West Municipal",14.9068322981366
+"61","Tema Metropolitan Area (TMA)",40.3422982885086
+"62","Ningo-Prampram",52.8893241919687
+"63","Shai-Osudoku",58.9473684210526
+"64","Ada West",95.0118764845606
+"65","Ada East",85.0202429149798
+"66","South Tongu",99.388379204893
+"67","Anloga",70.1030927835052
+"68","Keta Municipal",64.5161290322581
+"69","Ketu South Municipal",66.7209113100081
+"70","Ketu North Municipal",68.8524590163934
+"71","Akatsi North",122.80701754386
+"72","Akatsi South Municipal",73.3590733590734
+"73","Central Tongu",91.0891089108911
+"74","North Tongu",97.2696245733788
+"75","Ho West",69.7674418604651
+"76","Adaklu",112.033195020747
+"77","Agortime-Ziope",52.6315789473684
+"78","Ho Municipal",29.4612794612795
+"79","South Dayi",87.6132930513595
+"80","Afadzato South",111.111111111111
+"81","North Dayi",83.6120401337793
+"82","Kpando Municipal",79.0378006872852
+"83","Hohoe Municipal",66.5658093797277
+"84","Birim South",82.3529411764706
+"85","Birim Central Municipal",41.5335463258786
+"86","Achiase",94.2857142857143
+"87","Asene Manso Akroso",92.8270042194093
+"88","West Akim Municipal",55.9345156889495
+"89","Upper West Akim",86.8686868686869
+"90","Ayensuano",120.906801007557
+"91","Nsawam Adoagyiri Municipal",52.7704485488127
+"92","Akwapim South Municipal",48.2142857142857
+"93","Akwapim North Municipal",24.9150622876557
+"94","Okere",85.6164383561644
+"95","New Juaben South Municipal",18.6666666666667
+"96","New Juaben North Municipal",28.0561122244489
+"97","Suhum Municipal",67.476383265857
+"98","Abuakwa North Municipal",36.5853658536585
+"99","Abuakwa South Municipal",83.8709677419355
+"100","Denkyembuor",50.8849557522124
+"101","Akyemansa",80.5500982318271
+"102","Kwaebibirem Municipal",97.2222222222222
+"103","Birim North",98.9010989010989
+"104","Atiwa West",110.778443113772
+"105","Atiwa East",117.1875
+"106","Fanteakwa South",56.390977443609
+"107","Yilo Krobo Municipal",68.4039087947883
+"108","Lower Manya Krobo Municipal",42.0609884332282
+"109","Asuogyaman",50.4885993485342
+"110","Upper Manya Krobo",150.943396226415
+"111","Fanteakwa North",101.045296167247
+"112","Kwahu South Municipal",90.5077262693157
+"113","Kwahu West Municipal",69.7674418604651
+"114","Kwahu East",104.072398190045
+"115","Kwahu Afram Plains South",112.947658402204
+"116","Kwahu Afram Plains North",141.843971631206
+"117","Amansie South",136.704119850187
+"118","Amansie Central",141.280353200883
+"119","Akrofuom",117.857142857143
+"120","Adansi South",105.381165919283
+"121","Adansi Asokwa",126.099706744868
+"122","Obuasi East",41.1522633744856
+"123","Obuasi Municipal",46.6417910447761
+"124","Adansi North",69.9300699300699
+"125","Bekwai Municipal",76.5714285714286
+"126","Amansie West",117.424242424242
+"127","Atwima Kwanwoma",42.2984836392658
+"128","Bosomtwi",68.3572216097023
+"129","Bosome Freho",98.1818181818182
+"130","Asante Akim Central Municipal",58.7044534412955
+"131","Asante Akim South Municipal",106.180665610143
+"132","Asante Akim North Municipal",81.9672131147541
+"133","Sekyere Kumawu",66.079295154185
+"134","Sekyere East",66.006600660066
+"135","Juaben Municipal",83.1024930747922
+"136","Ejisu Municipal",34.9716446124764
+"137","Oforikrom Municipal",21.0459183673469
+"138","Asokwa Municipal",32.967032967033
+"139","Kumasi Metropolitan Area (KMA)",19.4678780012979
+"140","Kwadaso Municipal",25.6709451575263
+"141","Suame Municipal",19.0895741556535
+"142","Old Tafo Municipal",23.8500851788756
+"143","Asokore Mampong Municipal",29.3282876064333
+"144","Kwabre East",34.5403899721448
+"145","Afigya Kwabre South",50
+"146","Atwima Nwabiagya North",27.4869109947644
+"147","Atwima Nwabiagya South Municipal",40.5862457722661
+"148","Atwima Mponua",104.347826086957
+"149","Ahafo Ano South West",101.226993865031
+"150","Ahafo Ano North Municipal",88.3882149046794
+"151","Ahafo Ano South East",121.710526315789
+"152","Offinso North",100.790513833992
+"153","Offinso Municipal",78.2190132370638
+"154","Afigya Kwabre North",56.8862275449102
+"155","Sekyere South",51.0948905109489
+"156","Mampong Municipal",59.1647331786543
+"157","Ejura Sekyedumase Municipal",77.6081424936387
+"158","Sekyere Central",112.941176470588
+"159","Sekyere Afram Plains",149.659863945578
+"160","Aowin Municipal",78.4313725490196
+"161","Sefwi Akontombra",90.9090909090909
+"162","Suaman",27.7777777777778
+"163","Bodi",108.108108108108
+"164","Sefwi Wiawso Municipal",65.1658767772512
+"165","Bibiani Anhwiaso Bekwai Municipal",83.4236186348862
+"166","Juaboso",48.0961923847695
+"167","Bia West",79.81220657277
+"168","Bia East",124.555160142349
+"169","Asunafo South",87.1459694989107
+"170","Asunafo North Municipal",81.8414322250639
+"171","Asutifi South",48.4581497797357
+"172","Asutifi North",84.9056603773585
+"173","Tano North Municipal",67.3981191222571
+"174","Tano South Municipal",72.7272727272727
+"175","Dormaa West",86.2745098039216
+"176","Dormaa Central Municipal",96.551724137931
+"177","Dormaa East",74.468085106383
+"178","Sunyani Municipal",40.8839779005525
+"179","Sunyani West Municipal",44.3864229765013
+"180","Berekum East Municipal",30.4347826086957
+"181","Berekum West",71.1610486891386
+"182","Jaman South",83.3333333333333
+"183","Jaman North",75.7575757575758
+"184","Tain",86.4600326264274
+"185","Wenchi Municipal",63.4920634920635
+"186","Banda",81.4814814814815
+"187","Nkoranza South Municipal",122.522522522523
+"188","Techiman Municipal",55.6426332288401
+"189","Nkoranza North",83.8509316770186
+"190","Techiman North",73.7018425460636
+"191","Atebubu Amantin Municipal",82.2085889570552
+"192","Sene West",86.2533692722372
+"193","Sene East",117.142857142857
+"194","Pru West",85.1648351648352
+"195","Pru East",106.896551724138
+"196","Kintampo South",123.515439429929
+"197","Kintampo North Municipal",108.516483516484
+"198","Biakoye",119.186046511628
+"199","Jasikan Municipal",75.5287009063444
+"200","Kadjebi",126.684636118598
+"201","Krachi East Municipal",113.970588235294
+"202","Krachi West Municipal",100.574712643678
+"203","Krachi Nchumuru",91.1330049261084
+"204","Nkwanta South Municipal",113.133940182055
+"205","Nkwanta North (Kpassa)",96.8703427719821
+"206","Guan",69.2307692307692
+"207","Kpandai",92.4608819345661
+"208","Nanumba South",99.8116760828625
+"209","Nanumba North Municipal",81.6326530612245
+"210","Zabzugu",120.734908136483
+"211","Tatale Sanguli",104.225352112676
+"212","Saboba",66.1016949152542
+"213","Yendi Municipal",98.0629539951574
+"214","Mion",142.857142857143
+"215","Nanton",118.64406779661
+"216","Tamale Metropolitan Area (TMA)",30.4844855743059
+"217","Sagnarigu Municipal",33.373063170441
+"218","Tolon",107.798165137615
+"219","Kumbungu",81.3186813186813
+"220","Savelugu Municipal",80.3418803418803
+"221","Karaga",210.325047801147
+"222","Gushegu Municipal",156.95067264574
+"223","Bole",119.453924914676
+"224","Sawla Tuna Kalba",112.377850162866
+"225","North Gonja",163.987138263666
+"226","West Gonja",93.75
+"227","Central Gonja",98.159509202454
+"228","East Gonja Municipal",73.1319554848967
+"229","North East Gonja",123.376623376623
+"230","Mamprugu Moagduri",162.162162162162
+"231","West Mamprusi Municipal",121.621621621622
+"232","East Mamprusi Municipal",122.718052738337
+"233","Bunkpurugu Nakpanduri",54.1082164328657
+"234","Yunyoo Nasuan",122.923588039867
+"235","Chereponi",98.8505747126437
+"236","Builsa South",101.449275362319
+"237","Builsa North Municipal",76.6550522648084
+"238","Kasena Nankana Municipal",63.2911392405063
+"239","Kasena Nankana West",84.2696629213483
+"240","Bolgatanga Municipal",58.9569160997732
+"241","Talensi",102.739726027397
+"242","Bolgatanga East",63.0630630630631
+"243","Bongo",109.352517985612
+"244","Nabdam",85.9872611464968
+"245","Bawku West",106.172839506173
+"246","Binduri",91.7647058823529
+"247","Bawku Municipal",27.7777777777778
+"248","Garu",59.4594594594595
+"249","Tempane",48.5232067510549
+"250","Pusiga",55.0964187327824
+"251","Wa West",82.5688073394495
+"252","Wa East",138.009049773756
+"253","Wa Municipal",39.2857142857143
+"254","Nadowli Kaleo",86.8596881959911
+"255","Daffiama Bussie Issa",117.647058823529
+"256","Sissala East Municipal",78.6240786240786
+"257","Sissala West",113.268608414239
+"258","Jirapa Municipal",71.4285714285714
+"259","Lawra Municipal",65.2173913043478
+"260","Lambussie Karni",49.2307692307692
+"261","Nandom",20.9205020920502
