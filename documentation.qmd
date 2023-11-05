@@ -1469,11 +1469,11 @@ cor_plot <- my_Correlation_df %>%
   pivot_longer(-1) %>%
   rename(`SDG Indicator` = name,
          `Access Indicator` = rowname) %>% 
-  ggplot(aes(x = stringr::str_wrap(`SDG Indicator`, 20), y = `Access Indicator`, fill = value)) +
+  ggplot(aes(x = stringr::str_wrap(`SDG Indicator`, 15), y = `Access Indicator`, fill = value)) +
   geom_tile(col = "white", linewidth =1) +
   geom_text(aes(label = format(value, nsmall = 2)), size=5, family = "Azeret Mono") +
   coord_equal() +
-  scale_fill_gradient2(low = "#05e1fc", mid = "white", high = "#e0224b") +
+  scale_fill_gradient2(low = "#05e1fc", mid = "white", high = "#e0224b",limits = c(-1, 1) ) +
   labs(x = NULL,
        y = NULL,
        fill = "correlation") +
@@ -1485,10 +1485,9 @@ cor_plot <- my_Correlation_df %>%
         legend.title = element_text(colour = "white", family = "Azeret Mono"),
         axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1, family = "Azeret Mono" , colour = "white"),
         plot.background = element_rect(colour = 'black', fill = 'black'))+
-  guides(fill = guide_colourbar(barwidth = 20, barheight = 1))
+  guides(fill = guide_colourbar(barwidth = 20, barheight = 1.5))
 
-
-ggsave("output_files/cor_plot.png",cor_plot,  width = 12, height = 9, dpi = 300)
+ggsave("cor_plot.png",cor_plot,  width = 12, height = 8.5, dpi = 300)s
 ```
 
 
