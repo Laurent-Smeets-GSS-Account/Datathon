@@ -127,7 +127,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="mlab" class="level2">
 <h2 class="anchored" data-anchor-id="mlab">Mlab</h2>
-<p>We used M-labs to create a proxy for the quality of internet in a give area. To access the M-lab data we use Google Big Query and used this exact query.</p>
+<p>We used M-labs<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> to create a proxy for the quality of internet in a give area. To access the M-lab data we use Google Big Query and used this exact query.</p>
 <p><em>M-Lab, or Measurement Lab, is a consortium formed by research, industry, and public-interest partners, aiming to foster an open, verifiable ecosystem for measuring global network performance. Operating as an open source project, it draws contributions from civil society organizations, educational institutions, and private sector companies. M-Lab hosts the largest collection of open Internet performance data globally, providing publicly available internet measurement services like measurement-lab.ndt.unified_downloads to help consumers, policymakers, and researchers develop an accurate understanding of their internet service quality. Among its offerings, it provides a variety of internet measurement services, including speed testing to numerous consumer platforms and services across the web.</em></p>
 <pre><code>SELECT
   client.Geo.CountryName AS name,
@@ -337,7 +337,7 @@ ORDER BY
 </section>
 <section id="nightlight-data" class="level2">
 <h2 class="anchored" data-anchor-id="nightlight-data">Nightlight data</h2>
-<p>one alternative data source we used was Nightlight satellite data from the Nasa Visible Infrared Imager-Radiometer Suite (VIIRS) satellite <a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>. The pre-processed data for all of Sub-Saharan Africa can be downloaded here: https://github.com/giacfalk/Electrification_SSA_data and here: https://data.mendeley.com/datasets/kn4636mtvg/6/.</p>
+<p>one alternative data source we used was Nightlight satellite data from the Nasa Visible Infrared Imager-Radiometer Suite (VIIRS) satellite <a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>. The pre-processed data for all of Sub-Saharan Africa can be downloaded here: https://github.com/giacfalk/Electrification_SSA_data and here: https://data.mendeley.com/datasets/kn4636mtvg/6/.</p>
 <p>These data will later be used to compute which percentage of the popopulation lives within an area that has access to electricity.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>access_levels <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(<span class="st">"data/tiersofaccess_SSA_2018.nc"</span>)</span>
@@ -363,7 +363,7 @@ ORDER BY
 </section>
 <section id="access-to-school-data." class="level2">
 <h2 class="anchored" data-anchor-id="access-to-school-data.">Access to School data.</h2>
-<p>Although multiple sources access with the location of all school in Ghana (e.g.&nbsp;Project Connect: https://projectconnect.unicef.org/map/countries), most do not offer easy ways to download these data locally. So instead, we used OpenStreetMap<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>. to download the location of all schools in Ghana (17,223 observations) and used the Open Source Routing Machine (OSRM)<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> to create isodistance shapefiles (we ended up using 5km and 10km) around each school. Using OSRM has the advantage that it incorporates the road network. This way we can compute realistic travel-distances instead of just relying on straight-line distances (in cases were the roadnetwork was not sufficient we fell back on straight-line distances). To set up OSRM we first downloaded all all of the Ghana OSM data and set up a docker image running OSRM. To do this we create a new folder (to download all the files in) and ran these commands after navigating to this folder using:</p>
+<p>Although multiple sources access with the location of all school in Ghana (e.g.&nbsp;Project Connect: https://projectconnect.unicef.org/map/countries), most do not offer easy ways to download these data locally. So instead, we used OpenStreetMap<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>. to download the location of all schools in Ghana (17,223 observations) and used the Open Source Routing Machine (OSRM)<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a> to create isodistance shapefiles (we ended up using 5km and 10km) around each school. Using OSRM has the advantage that it incorporates the road network. This way we can compute realistic travel-distances instead of just relying on straight-line distances (in cases were the roadnetwork was not sufficient we fell back on straight-line distances). To set up OSRM we first downloaded all all of the Ghana OSM data and set up a docker image running OSRM. To do this we create a new folder (to download all the files in) and ran these commands after navigating to this folder using:</p>
 <pre><code>docker pull osrm/osrm-backend
 wget http://download.geofabrik.de/africa/ghana-latest.osm.pbf
 
@@ -683,7 +683,7 @@ docker run -t -i -p 5000:5000 -v %cd%:/data osrm/osrm-backend osrm-routed --algo
 <h1>Data from Traditional data sources</h1>
 <section id="population-data" class="level2">
 <h2 class="anchored" data-anchor-id="population-data">Population data</h2>
-<p>To get high-resolution population data (100m by 100m grid) we used WordPop’s highresolution gridded population.<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>. These data can be downloaded from: https://wopr.worldpop.org/?GHA/. We transform these data into centroids (assuming that within a 100m by 100m population is normally distributed) which are then used later to compute access to school, internet, and electricity. The file we create (<code>population_polygon_sf.rds</code>) cannot be uploaded to GitHub, but the file can be created with the code below (we did uploaded a zipped version, so it is possible to unzip this version)</p>
+<p>To get high-resolution population data (100m by 100m grid) we used WordPop’s highresolution gridded population.<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>. These data can be downloaded from: https://wopr.worldpop.org/?GHA/. We transform these data into centroids (assuming that within a 100m by 100m population is normally distributed) which are then used later to compute access to school, internet, and electricity. The file we create (<code>population_polygon_sf.rds</code>) cannot be uploaded to GitHub, but the file can be created with the code below (we did uploaded a zipped version, so it is possible to unzip this version)</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>population <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(<span class="st">"data/GHA_population_v2_0_gridded_population.tif"</span>)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -1464,29 +1464,44 @@ docker run -t -i -p 5000:5000 -v %cd%:/data osrm/osrm-backend osrm-routed --algo
 <h2 class="anchored" data-anchor-id="correlation-between-sdg-preformance-and-rank">Correlation Between SDG preformance and Rank</h2>
 <p>This code creates the correlation matrix between the SDG target performance and the AII sub indices.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>census_SDG_indicators <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"output_files/SDG indicator tracker new - 05-11-2023 updated.csv"</span>)</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="do">## Loading the data containing the ranks of each districts</span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>Rank_data <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">"output_files/ranks.csv"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">`</span><span class="at">Internet score</span><span class="st">`</span><span class="ot">=</span>score_internet,</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Electricity score</span><span class="st">`</span><span class="ot">=</span>score_electricity,</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Education score</span><span class="st">`</span><span class="ot">=</span>score_education,</span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">Rank=</span>rank_score)</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>mydata <span class="ot">&lt;-</span> census_SDG_indicators <span class="sc">%&gt;%</span> </span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(Rank_data, <span class="at">by=</span><span class="st">"District"</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>District)</span>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>census_SDG_indicators <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"output_files/SDG indicator tracker new - 05-11-2023 updated.csv"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">District =</span> <span class="fu">ifelse</span>(District <span class="sc">==</span><span class="st">"Cape Cape Metropolitan Area (CCMA)"</span>, </span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>                                   <span class="st">"Cape Coast Metropolitan Area (CCMA)"</span>, </span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>                                   District  ))</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="do">## Loading the data containing the ranks of each districts</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>Rank_data <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">"output_files/ranks.csv"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">`</span><span class="at">Internet score</span><span class="st">`</span><span class="ot">=</span>score_internet,</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Electricity score</span><span class="st">`</span><span class="ot">=</span>score_electricity,</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Education score</span><span class="st">`</span><span class="ot">=</span>score_education,</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>         <span class="at">Rank=</span>rank_score,</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Total Score</span><span class="st">`</span> <span class="ot">=</span> score_final_deflated)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="do">## We segment the data into two different parts</span></span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>Access_Indicator <span class="ot">&lt;-</span> mydata[, <span class="fu">c</span>(<span class="st">"Electricity score"</span>, <span class="st">"Internet score"</span>, <span class="st">"Education score"</span>, <span class="st">"Rank"</span>)] </span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>SDG_Indicators <span class="ot">&lt;-</span> mydata[, <span class="fu">c</span>(<span class="st">"Indicator_7.1.1_electricity_access"</span>, <span class="st">"Indicator_7.1.2_clean_energy_prim"</span>, <span class="st">"Indicator_8.7.1_child_labour"</span>, </span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>                              <span class="st">"Indicator_5.b.1_phone_ownership"</span>, <span class="st">"Indicator_6.1.1_safe_water"</span>, <span class="st">"Indicator_6.2.1_safely_managed_sanitation"</span>,</span>
-<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>                             <span class="st">"Indicator_3.7.2_adolescent_birth_rate_15_19"</span>,<span class="st">"Indicator_8.5.2_unemployment_rate_disable"</span>,</span>
-<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>                             <span class="st">"Indicator_9.2.2_manufacturing_employment"</span>, <span class="st">"Indicator_17.8.1_internet_use"</span>)]  </span>
-<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a><span class="do">### We compute the correlation Matrix</span></span>
-<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>correlation_Matrix <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">cor</span>(Access_Indicator, SDG_Indicators),<span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>mydata <span class="ot">&lt;-</span> census_SDG_indicators <span class="sc">%&gt;%</span> </span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(Rank_data , <span class="at">by=</span><span class="st">"District"</span>)</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="do">## We segment the data into two different parts</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>Access_Indicator <span class="ot">&lt;-</span> mydata[, <span class="fu">c</span>(<span class="st">"Electricity score"</span>, <span class="st">"Internet score"</span>, <span class="st">"Education score"</span>,<span class="st">"Total Score"</span>,  <span class="st">"Rank"</span>)] </span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>SDG_Indicators <span class="ot">&lt;-</span> mydata[, <span class="fu">c</span>(<span class="st">"Indicator_7.1.1_electricity_access"</span>, <span class="st">"Indicator_7.1.2_clean_energy_prim"</span>, <span class="st">"Indicator_8.7.1_child_labour"</span>, </span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>                             <span class="st">"Indicator_5.b.1_phone_ownership"</span>, <span class="st">"Indicator_6.1.1_safe_water"</span>, <span class="st">"Indicator_6.2.1_safely_managed_sanitation"</span>,</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>                             <span class="st">"Indicator_3.7.2_adolescent_birth_rate_15_19"</span>,<span class="st">"Indicator_8.5.2_unemployment_rate_disable"</span>,</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>                             <span class="st">"Indicator_9.2.2_manufacturing_employment"</span>, <span class="st">"Indicator_17.8.1_internet_use"</span>)]  </span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a><span class="do">### We compute the correlation Matrix</span></span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>correlation_Matrix <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">cor</span>(Access_Indicator, SDG_Indicators),<span class="dv">2</span>)</span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a><span class="do">### Converting the correlation Matrix List Into a dataframe</span></span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>my_Correlation_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(correlation_Matrix) <span class="sc">%&gt;%</span> </span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">`</span><span class="at">Child labour (8.7.1)</span><span class="st">`</span><span class="ot">=</span>Indicator_8.<span class="fl">7.1</span>_child_labour,</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Safe water (6.1.1)</span><span class="st">`</span><span class="ot">=</span>Indicator_6.<span class="fl">1.1</span>_safe_water,</span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Electricity Access (7.1.1)</span><span class="st">`</span><span class="ot">=</span>Indicator_7.<span class="fl">1.1</span>_electricity_access,</span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Phone Ownership (5.b.1)</span><span class="st">`</span><span class="ot">=</span>Indicator_5.b<span class="fl">.1</span>_phone_ownership,</span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Clean Energy (7.1.2)</span><span class="st">`</span><span class="ot">=</span>Indicator_7.<span class="fl">1.2</span>_clean_energy_prim,</span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Safely Managed Sanitation (6.2.1)</span><span class="st">`</span><span class="ot">=</span>Indicator_6.<span class="fl">2.1</span>_safely_managed_sanitation,</span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Adolescent Birth Rate (3.7.2)</span><span class="st">`</span><span class="ot">=</span>Indicator_3.<span class="fl">7.2</span>_adolescent_birth_rate_15_19,</span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Disabled Unemployment (8.5.2)</span><span class="st">`</span><span class="ot">=</span>Indicator_8.<span class="fl">5.2</span>_unemployment_rate_disable,</span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Manufacturing Employment (9.2.2)</span><span class="st">`</span><span class="ot">=</span>Indicator_9.<span class="fl">2.2</span>_manufacturing_employment,</span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Internet Use (17.8.1)</span><span class="st">`</span><span class="ot">=</span>Indicator_17.<span class="fl">8.1</span>_internet_use)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>This code creates the correlation plot between the SDG indicators and access to information.</p>
 <div class="cell">
@@ -1503,11 +1518,11 @@ docker run -t -i -p 5000:5000 -v %cd%:/data osrm/osrm-backend osrm-routed --algo
 <span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span><span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
 <span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">`</span><span class="at">SDG Indicator</span><span class="st">`</span> <span class="ot">=</span> name,</span>
 <span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>         <span class="st">`</span><span class="at">Access Indicator</span><span class="st">`</span> <span class="ot">=</span> rowname) <span class="sc">%&gt;%</span> </span>
-<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> stringr<span class="sc">::</span><span class="fu">str_wrap</span>(<span class="st">`</span><span class="at">SDG Indicator</span><span class="st">`</span>, <span class="dv">20</span>), <span class="at">y =</span> <span class="st">`</span><span class="at">Access Indicator</span><span class="st">`</span>, <span class="at">fill =</span> value)) <span class="sc">+</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> stringr<span class="sc">::</span><span class="fu">str_wrap</span>(<span class="st">`</span><span class="at">SDG Indicator</span><span class="st">`</span>, <span class="dv">15</span>), <span class="at">y =</span> <span class="st">`</span><span class="at">Access Indicator</span><span class="st">`</span>, <span class="at">fill =</span> value)) <span class="sc">+</span></span>
 <span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>(<span class="at">col =</span> <span class="st">"white"</span>, <span class="at">linewidth =</span><span class="dv">1</span>) <span class="sc">+</span></span>
 <span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">label =</span> <span class="fu">format</span>(value, <span class="at">nsmall =</span> <span class="dv">2</span>)), <span class="at">size=</span><span class="dv">5</span>, <span class="at">family =</span> <span class="st">"Azeret Mono"</span>) <span class="sc">+</span></span>
 <span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_equal</span>() <span class="sc">+</span></span>
-<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient2</span>(<span class="at">low =</span> <span class="st">"#05e1fc"</span>, <span class="at">mid =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"#e0224b"</span>) <span class="sc">+</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_gradient2</span>(<span class="at">low =</span> <span class="st">"#05e1fc"</span>, <span class="at">mid =</span> <span class="st">"white"</span>, <span class="at">high =</span> <span class="st">"#e0224b"</span>,<span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>) ) <span class="sc">+</span></span>
 <span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>,</span>
 <span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="cn">NULL</span>,</span>
 <span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"correlation"</span>) <span class="sc">+</span></span>
@@ -1519,10 +1534,9 @@ docker run -t -i -p 5000:5000 -v %cd%:/data osrm/osrm-backend osrm-routed --algo
 <span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>        <span class="at">legend.title =</span> <span class="fu">element_text</span>(<span class="at">colour =</span> <span class="st">"white"</span>, <span class="at">family =</span> <span class="st">"Azeret Mono"</span>),</span>
 <span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">15</span>, <span class="at">angle =</span> <span class="dv">90</span>, <span class="at">vjust =</span> <span class="fl">0.5</span>, <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">family =</span> <span class="st">"Azeret Mono"</span> , <span class="at">colour =</span> <span class="st">"white"</span>),</span>
 <span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">plot.background =</span> <span class="fu">element_rect</span>(<span class="at">colour =</span> <span class="st">'black'</span>, <span class="at">fill =</span> <span class="st">'black'</span>))<span class="sc">+</span></span>
-<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">guides</span>(<span class="at">fill =</span> <span class="fu">guide_colourbar</span>(<span class="at">barwidth =</span> <span class="dv">20</span>, <span class="at">barheight =</span> <span class="dv">1</span>))</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">guides</span>(<span class="at">fill =</span> <span class="fu">guide_colourbar</span>(<span class="at">barwidth =</span> <span class="dv">20</span>, <span class="at">barheight =</span> <span class="fl">1.5</span>))</span>
 <span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">"output_files/cor_plot.png"</span>,cor_plot,  <span class="at">width =</span> <span class="dv">12</span>, <span class="at">height =</span> <span class="dv">9</span>, <span class="at">dpi =</span> <span class="dv">300</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a><span class="fu">ggsave</span>(<span class="st">"cor_plot.png"</span>,cor_plot,  <span class="at">width =</span> <span class="dv">12</span>, <span class="at">height =</span> <span class="fl">8.5</span>, <span class="at">dpi =</span> <span class="dv">300</span>)s</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="tools" class="level2">
@@ -1535,6 +1549,7 @@ docker run -t -i -p 5000:5000 -v %cd%:/data osrm/osrm-backend osrm-routed --algo
 <li>Excel: some on the fly</li>
 <li>ArcGIS: used for mapping and StoryBoard</li>
 <li>AWS: for hosting of shiny app and running of heavy analyses</li>
+<li>Docker: for running routing server</li>
 </ul>
 </section>
 </section>
@@ -1543,10 +1558,11 @@ docker run -t -i -p 5000:5000 -v %cd%:/data osrm/osrm-backend osrm-routed --algo
 <div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
 
 <ol>
-<li id="fn1"><p>Falchetta, G., Pachauri, S., Parkinson, S. et al.&nbsp;A high-resolution gridded dataset to assess electrification in sub-Saharan Africa. Sci Data 6, 110 (2019). https://doi.org/10.1038/s41597-019-0122-6<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
-<li id="fn2"><p>https://www.openstreetmap.org/<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
-<li id="fn3"><p>https://project-osrm.org/<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
-<li id="fn4"><p>https://data.worldpop.org/repo/wopr/GHA/population/v2.0/GHA_population_v2_0_README.pdf<a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn1"><p>https://www.measurementlab.net/<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>Falchetta, G., Pachauri, S., Parkinson, S. et al.&nbsp;A high-resolution gridded dataset to assess electrification in sub-Saharan Africa. Sci Data 6, 110 (2019). https://doi.org/10.1038/s41597-019-0122-6<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>https://www.openstreetmap.org/<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>https://project-osrm.org/<a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p>https://data.worldpop.org/repo/wopr/GHA/population/v2.0/GHA_population_v2_0_README.pdf<a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
 </ol>
 </section></div></main>
 <!-- /main column -->

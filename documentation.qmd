@@ -38,7 +38,7 @@ library(sjlabelled)
 
 ## Mlab
 
-We used M-labs to create a proxy for the quality of internet in a give area. To access the M-lab data we use Google Big Query and used this exact query.
+We used M-labs^[https://www.measurementlab.net/] to create a proxy for the quality of internet in a give area. To access the M-lab data we use Google Big Query and used this exact query.
 
 *M-Lab, or Measurement Lab, is a consortium formed by research, industry, and public-interest partners, aiming to foster an open, verifiable ecosystem for measuring global network performance. Operating as an open source project, it draws contributions from civil society organizations, educational institutions, and private sector companies. M-Lab hosts the largest collection of open Internet performance data globally, providing publicly available internet measurement services like measurement-lab.ndt.unified_downloads to help consumers, policymakers, and researchers develop an accurate understanding of their internet service quality. Among its offerings, it provides a variety of internet measurement services, including speed testing to numerous consumer platforms and services across the web.*
 
@@ -1427,29 +1427,46 @@ New_final <- new_df %>%
 This code creates the correlation matrix between the SDG target performance and the AII sub indices.
 
 ```{r}
-census_SDG_indicators <- read_csv("output_files/SDG indicator tracker new - 05-11-2023 updated.csv")
+census_SDG_indicators <- read_csv("output_files/SDG indicator tracker new - 05-11-2023 updated.csv") %>% 
+  mutate(District = ifelse(District =="Cape Cape Metropolitan Area (CCMA)", 
+                                   "Cape Coast Metropolitan Area (CCMA)", 
+                                   District  ))
 
 ## Loading the data containing the ranks of each districts
 Rank_data <- read.csv("output_files/ranks.csv") %>%
   rename(`Internet score`=score_internet,
          `Electricity score`=score_electricity,
          `Education score`=score_education,
-         Rank=rank_score)
- 
+         Rank=rank_score,
+         `Total Score` = score_final_deflated)
+
 
 mydata <- census_SDG_indicators %>% 
-  left_join(Rank_data, by="District") %>% 
-  select(-District)
-
+  left_join(Rank_data , by="District")
 ## We segment the data into two different parts
-Access_Indicator <- mydata[, c("Electricity score", "Internet score", "Education score", "Rank")] 
+Access_Indicator <- mydata[, c("Electricity score", "Internet score", "Education score","Total Score",  "Rank")] 
 SDG_Indicators <- mydata[, c("Indicator_7.1.1_electricity_access", "Indicator_7.1.2_clean_energy_prim", "Indicator_8.7.1_child_labour", 
-                              "Indicator_5.b.1_phone_ownership", "Indicator_6.1.1_safe_water", "Indicator_6.2.1_safely_managed_sanitation",
+                             "Indicator_5.b.1_phone_ownership", "Indicator_6.1.1_safe_water", "Indicator_6.2.1_safely_managed_sanitation",
                              "Indicator_3.7.2_adolescent_birth_rate_15_19","Indicator_8.5.2_unemployment_rate_disable",
                              "Indicator_9.2.2_manufacturing_employment", "Indicator_17.8.1_internet_use")]  
 
 ### We compute the correlation Matrix
-correlation_Matrix <- round(cor(Access_Indicator, SDG_Indicators),3)
+correlation_Matrix <- round(cor(Access_Indicator, SDG_Indicators),2)
+
+### Converting the correlation Matrix List Into a dataframe
+my_Correlation_df <- data.frame(correlation_Matrix) %>% 
+  rename(`Child labour (8.7.1)`=Indicator_8.7.1_child_labour,
+         `Safe water (6.1.1)`=Indicator_6.1.1_safe_water,
+         `Electricity Access (7.1.1)`=Indicator_7.1.1_electricity_access,
+         `Phone Ownership (5.b.1)`=Indicator_5.b.1_phone_ownership,
+         `Clean Energy (7.1.2)`=Indicator_7.1.2_clean_energy_prim,
+         `Safely Managed Sanitation (6.2.1)`=Indicator_6.2.1_safely_managed_sanitation,
+         `Adolescent Birth Rate (3.7.2)`=Indicator_3.7.2_adolescent_birth_rate_15_19,
+         `Disabled Unemployment (8.5.2)`=Indicator_8.5.2_unemployment_rate_disable,
+         `Manufacturing Employment (9.2.2)`=Indicator_9.2.2_manufacturing_employment,
+         `Internet Use (17.8.1)`=Indicator_17.8.1_internet_use)
+
+
 ```
 
 
@@ -1500,6 +1517,7 @@ ggsave("cor_plot.png",cor_plot,  width = 12, height = 8.5, dpi = 300)s
 -   Excel: some on the fly
 -   ArcGIS: used for mapping and StoryBoard
 -   AWS: for hosting of shiny app and running of heavy analyses
+-  Docker: for running routing server
 
 
 
