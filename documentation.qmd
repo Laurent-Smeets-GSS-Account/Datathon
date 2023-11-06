@@ -650,12 +650,11 @@ In addition to these non-traditional data sources, we also used GSS census data.
 1)  the Ghana Statistical Service Statsbank (https://statsbank.statsghana.gov.gh/). Some tables were directly generated on the StatsBank and downloaded.
 2)  The 10% micro data from the StatsBank for data sources that need dissagregation that cannot be done on the Statsbank (https://microdata.statsghana.gov.gh/). This 10% is too big to be uploaded on Github, but can be downloaded on this microdata platform.
     1)   Literacy_6years_Internet.csv: this files contains some computed indicators on literacy and internet use of the population 6 years and older.
-    2)
+    2) Literacy_18_years_Internet.csv: this files contains some computed indicators on literacy and internet use of the population 18 years and older.
 
 ```{r}
 # set path to data
 path_to_data <-  "data/defactopopn_10_2021.dta"
-
 
 popict <- sjlabelled::as_label(read_dta(file = path_to_data, 
                                         col_select = c("a11d","p02", "region", "distcode", "distcode",
@@ -675,6 +674,114 @@ target <- c("Occupied housing unit" , "Homeless household" , "Basic Schools (KG,
             "Prison/ Borstal/Correctional homes", "Leper settlements (Leprosarium)")                                                                          
 
 
+pop <- popict %>%  
+  mutate(p02 = as.numeric(as.character(p02))) %>% 
+  filter(restype %in% target) %>%  
+  filter(p02>=6) 
+
+
+#### Generating Literacy in Local Languages Variable
+pop <- pop %>% 
+  mutate(Literate_Local = case_when(
+    p11ba == "Yes" | p11bb == "Yes" | p11bc == "Yes" | p11bd == "Yes" | p11be == "Yes" |
+      p11bf == "Yes" | p11bg == "Yes" | p11bh == "Yes" | p11bi == "Yes" | p11bj == "Yes" |
+      p11bk == "Yes" | p11bl == "Yes" | p11bm == "Yes" | p11bbo == "Yes" | p11bp == "Yes" |
+      p11bq == "Yes" | p11br == "Yes" | p11bs == "Yes" | p11bt == "Yes" | p11bu == "Yes" | 
+      p11bv == "Yes" | p11bw == "Yes" | p11bx == "Yes"  ~ "Literate", p11ba == "No" & p11bb == "No" & 
+      p11bc == "No" & p11bd == "No" & p11be == "No" &
+      p11bf == "No" & p11bg == "No" & p11bh == "No" & p11bi == "No" & p11bj == "No" &
+      p11bk == "No" & p11bl == "No" & p11bm == "No" & p11bbo == "No" & p11bp == "No" &
+      p11bq == "No" & p11br == "No" & p11bs == "No" & p11bt == "No" & p11bu == "No" & 
+      p11bv == "No" & p11bw == "No" & p11bx == "No" ~ "Illiterate",
+    TRUE ~ NA_character_
+  ))
+
+
+##### Getting a cross tab of literacy in english and usage of internet####
+
+## Getting Data for population six years and older
+totpop <- table(pop$distcode)
+result_totpop <- as.data.frame(totpop)
+colnames(result_totpop) <- c("District", "Totpop")
+
+## Getting Data for population who cannot read and write in English
+toteng <- table(pop$distcode[pop$p11bn == "No"])
+result_eng <- as.data.frame(toteng)
+colnames(result_eng) <- c("District", "Illiterate")
+
+## Getting Data for population who did not use internet
+totint <- table(pop$distcode[pop$p19cz == "Yes"])
+result_ent <- as.data.frame(totint)
+colnames(result_ent) <- c("District", "Internet")
+
+### Getting data for Illiterate and Access to internet
+cross_tab <- table(pop$distcode[pop$p11bn == "No" & pop$p19cz == "No"])
+result_df <- as.data.frame(cross_tab)
+colnames(result_df) <- c("District", "Illit_Inte")
+
+### Getting data for Illiterate and No Access to internet
+cross_tab1 <- table(pop$distcode[pop$p11bn == "No" & pop$p19cz == "Yes"])
+result_ill_noint <- as.data.frame(cross_tab1)
+colnames(result_ill_noint) <- c("District", "Illit_noInte")
+
+### Getting data for literate and No Access to internet
+cross_tab2 <- table(pop$distcode[pop$p11bn == "Yes" & pop$p19cz == "Yes"])
+result_lit_noint <- as.data.frame(cross_tab2)
+colnames(result_lit_noint) <- c("District", "lit_noInte")
+
+cross_tab3 <- table(pop$distcode[pop$p11bn == "Yes" & pop$p19cz == "No"])
+result_lit_int <- as.data.frame(cross_tab3)
+colnames(result_lit_int) <- c("District", "lit_Inte")
+
+cross_tab4 <- table(pop$distcode[pop$p11bn == "No" & pop$Literate_Local == "Literate"])
+result_Illit_Eng_Literate_Local <- as.data.frame(cross_tab4)
+colnames(result_Illit_Eng_Literate_Local) <- c("District", "Illit_Eng_Literate_Local")
+
+cross_tab5 <- table(pop$distcode[pop$p19cz == "No" & pop$Literate_Local == "Literate"])
+result_Literate_Local_Use_Int <- as.data.frame(cross_tab5)
+colnames(result_Literate_Local_Use_Int) <- c("District", "Literate_Local_Used_Int")
+
+cross_tab6 <- table(pop$distcode[pop$p19cz == "Yes" & pop$Literate_Local == "Literate"])
+result_Literate_Local_Not_Int <- as.data.frame(cross_tab6)
+colnames(result_Literate_Local_Not_Int) <- c("District", "Literate_Local_Not_Used_Int")
+
+### Creating the data frame for all objects
+df <- data.frame(distcode = result_totpop$District, result_totpop$Totpop, result_eng$Illiterate, result_ent$Internet,
+                 result_df$Illit_Inte, result_ill_noint$Illit_noInte, result_lit_noint$lit_noInte, result_lit_int$lit_Inte,
+                 result_Illit_Eng_Literate_Local$Illit_Eng_Literate_Local, result_Literate_Local_Use_Int$Literate_Local_Used_Int,
+                 result_Literate_Local_Not_Int$Literate_Local_Not_Used_Int)
+
+
+Final <- df %>% 
+  janitor::clean_names() %>% 
+  mutate(prop_English_Illiterate=result_eng_illiterate/result_totpop_totpop,
+         prop_Did_Not_Used_Internet=result_ent_internet/result_totpop_totpop,
+         prop_Illiterate_Internet=result_df_illit_inte/result_totpop_totpop,
+         prop_Illiterate_NoInternet=result_ill_noint_illit_no_inte/result_totpop_totpop,
+         prop_Literate_Nointernet=result_lit_noint_lit_no_inte/result_totpop_totpop,
+         prop_Literate_Internet=result_lit_int_lit_inte/result_totpop_totpop,
+         prop_Illit_Eng_Literate_Local=result_illit_eng_literate_local_illit_eng_literate_local/result_totpop_totpop,
+         prop_lit_local_Usedict=result_literate_local_use_int_literate_local_used_int/result_totpop_totpop,
+         prop_lit_local_Not_Usedict=result_literate_local_not_int_literate_local_not_used_int/result_totpop_totpop,
+         
+         ) %>% 
+  write.csv("output_files/Literacy_6years_Internet.csv")
+
+###### Creating a table for Persons Illiterate in English but Literate in other launguages and used internet
+cross_tab7 <- table(pop$distcode[pop$p11bn == "Yes" & pop$p19cz == "No" & pop$Literate_Local == "Literate"])
+result_Eng_Illit_Lit_loc_Used_Int <- as.data.frame(cross_tab7)
+colnames(result_Eng_Illit_Lit_loc_Used_Int) <- c("District", "Illit_Eng_Lit_Loc_Used_Int")
+
+
+new_df <- data.frame(distcode = result_totpop$District, result_totpop$Totpop, result_Eng_Illit_Lit_loc_Used_Int$Illit_Eng_Lit_Loc_Used_Int)
+
+New_final <- new_df %>% 
+  janitor::clean_names() %>% 
+  mutate(prop_eng_ill_loc_lit_usedict=result_eng_illit_lit_loc_used_int_illit_eng_lit_loc_used_int/result_totpop_totpop) %>% 
+  write.csv("Illit_eng_Lit_loc_6years_Internet.csv")
+#############
+
+#### Creating for 18 Years and older
 pop <- popict %>%  
   mutate(p02 = as.numeric(as.character(p02))) %>% 
   filter(restype %in% target) %>%  
@@ -753,8 +860,6 @@ df <- data.frame(distcode = result_totpop$District, result_totpop$Totpop, result
                  result_Illit_Eng_Literate_Local$Illit_Eng_Literate_Local, result_Literate_Local_Use_Int$Literate_Local_Used_Int,
                  result_Literate_Local_Not_Int$Literate_Local_Not_Used_Int)
 
-colnames(New_final)
-
 Final <- df %>% 
   janitor::clean_names() %>% 
   mutate(prop_English_Illiterate=result_eng_illiterate/result_totpop_totpop,
@@ -768,7 +873,7 @@ Final <- df %>%
          prop_lit_local_Not_Usedict=result_literate_local_not_int_literate_local_not_used_int/result_totpop_totpop,
          
   ) %>% 
-  write.csv("output_files/Literacy_6years_Internet.csv")
+  write.csv("Literacy_18_years_Internet.csv")
 ```
 
 
